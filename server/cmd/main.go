@@ -14,11 +14,8 @@ import (
 	"github.com/lmittmann/tint"
 )
 
-const (
-	appName = "server"
-	// Default version is "dev" if not set with -ldflags "-X main.version=..."
-	version = "dev"
-)
+var version = "dev"
+var appName = "cloudpico-server"
 
 type Config struct {
 	AppEnv   string
