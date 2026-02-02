@@ -116,7 +116,6 @@ func newLogger(cfg Config) *slog.Logger {
 		"version", version,
 		"env", cfg.AppEnv,
 	)
-
 }
 
 func run(ctx context.Context) error {
