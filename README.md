@@ -2,7 +2,7 @@
 
 Overview
 
-This project is a small, self-hosted weather station stack built around a Raspberry Pi Pico (firmware in TinyGo) publishing sensor telemetry over MQTT, with a Go backend that ingests readings into SQLite and exposes an HTTP API. It also serves a simple HTML web client for viewing current conditions and basic history.
+This project is a self-hosted weather station stack built around a Raspberry Pi Pico (firmware in TinyGo) publishing sensor telemetry over MQTT, with a Go backend that ingests readings into SQLite and exposes an HTTP API. It also serves a simple HTML web client for viewing current conditions and basic history.
 
 Architecture
 
