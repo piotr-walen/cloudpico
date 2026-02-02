@@ -39,6 +39,5 @@ jobs:
       - name: Run unit tests
         run: |
           go test -coverpkg=./... -coverprofile=coverage.out -covermode=atomic -timeout 2m ./...
-      
       - name: Display coverage summary
         run: go tool cover -func=coverage.out
