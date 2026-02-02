@@ -1,0 +1,43 @@
+name: Go Build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go (from go.mod) + cache
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache: true
+          cache-dependency-path: server/go.sum
+
+      - name: Build
+        run: go build -o cloudpico-server ./...
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          working-directory: server
+
+      - name: Run unit tests
+        run: |
+          go test -coverpkg=./... -coverprofile=coverage.out -covermode=atomic -timeout 2m ./...
+      - name: Display coverage summary
+        run: go tool cover -func=coverage.out
