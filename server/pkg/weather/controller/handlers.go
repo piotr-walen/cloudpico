@@ -22,7 +22,13 @@ func (c *weatherControllerImpl) handleLatest(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	latest, err := c.repository.GetLatestReadings(id)
+	limit, err := parseLatestQuery(r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	latest, err := c.repository.GetLatestReadings(id, limit)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return

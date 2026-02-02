@@ -24,7 +24,7 @@ func (m *mockRepo) GetStations() ([]types.Station, error) {
 	return m.stations, m.stationsErr
 }
 
-func (m *mockRepo) GetLatestReadings(stationID string) ([]types.Reading, error) {
+func (m *mockRepo) GetLatestReadings(stationID string, limit int) ([]types.Reading, error) {
 	return m.latest, m.latestErr
 }
 
@@ -121,6 +121,19 @@ func Test_handleLatest(t *testing.T) {
 
 		if rec.Code != http.StatusInternalServerError {
 			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+	})
+
+	t.Run("returns 400 when limit is invalid", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/latest?limit=abc", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleLatest(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
 		}
 	})
 }

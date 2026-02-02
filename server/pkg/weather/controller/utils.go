@@ -44,6 +44,25 @@ func parseReadingsQuery(r *http.Request) (from time.Time, to time.Time, limit in
 	return from, to, limit, nil
 }
 
+func parseLatestQuery(r *http.Request) (limit int, err error) {
+	q := r.URL.Query()
+	limit = 100
+	if s := q.Get("limit"); s != "" {
+		n, convErr := strconv.Atoi(s)
+		if convErr != nil {
+			return 0, errors.New("invalid 'limit' (expected integer)")
+		}
+		if n <= 0 {
+			return 0, errors.New("'limit' must be > 0")
+		}
+		if n > 1000 {
+			return 0, errors.New("'limit' must be <= 1000")
+		}
+		limit = n
+	}
+	return limit, nil
+}
+
 func zeroAsNullTime(t time.Time) any {
 	if t.IsZero() {
 		return nil

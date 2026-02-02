@@ -3,6 +3,7 @@ package repository
 import (
 	"database/sql"
 	_ "embed"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -20,7 +21,7 @@ var getReadingsSQL string
 
 type WeatherRepository interface {
 	GetStations() ([]types.Station, error)
-	GetLatestReadings(stationID string) ([]types.Reading, error)
+	GetLatestReadings(stationID string, limit int) ([]types.Reading, error)
 	GetReadings(stationID string, from time.Time, to time.Time, limit int) ([]types.Reading, error)
 }
 
@@ -53,8 +54,8 @@ func (r *repositoryImpl) GetStations() ([]types.Station, error) {
 	return out, rows.Err()
 }
 
-func (r *repositoryImpl) GetLatestReadings(stationID string) ([]types.Reading, error) {
-	rows, err := r.db.Query(getLatestReadingSQL, stationID)
+func (r *repositoryImpl) GetLatestReadings(stationID string, limit int) ([]types.Reading, error) {
+	rows, err := r.db.Query(getLatestReadingSQL, stationID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +92,11 @@ func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 		}
 		t, err := time.Parse(time.RFC3339Nano, ts)
 		if err != nil {
-			t, _ = time.Parse(time.RFC3339, ts)
+			var err2 error
+			t, err2 = time.Parse(time.RFC3339, ts)
+			if err2 != nil {
+				return nil, fmt.Errorf("parse timestamp %q: RFC3339Nano: %w; RFC3339: %w", ts, err, err2)
+			}
 		}
 		rec.Time = t
 		out = append(out, rec)

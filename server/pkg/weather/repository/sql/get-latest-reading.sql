@@ -2,4 +2,4 @@ SELECT CAST(station_id AS TEXT) AS station_id, ts, COALESCE(temperature_c, 0) AS
 FROM readings
 WHERE station_id = ?
 ORDER BY ts DESC
-LIMIT 100;
+LIMIT ?;

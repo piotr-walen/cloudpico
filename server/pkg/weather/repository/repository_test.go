@@ -119,7 +119,7 @@ func TestGetLatestReadings_Empty(t *testing.T) {
 	}
 	repo := NewRepository(db)
 
-	readings, err := repo.GetLatestReadings("1")
+	readings, err := repo.GetLatestReadings("1", 100)
 	if err != nil {
 		t.Fatalf("GetLatestReadings: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestGetLatestReadings_WithData(t *testing.T) {
 	}
 	repo := NewRepository(db)
 
-	readings, err := repo.GetLatestReadings("1")
+	readings, err := repo.GetLatestReadings("1", 100)
 	if err != nil {
 		t.Fatalf("GetLatestReadings: %v", err)
 	}
@@ -168,6 +168,43 @@ func TestGetLatestReadings_WithData(t *testing.T) {
 	}
 }
 
+func TestGetLatestReadings_RespectsLimit(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'Central')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	_, err = db.Exec(`
+		INSERT INTO readings (station_id, ts, temperature_c) VALUES
+		(1, '2025-02-01T12:00:00Z', 10.0),
+		(1, '2025-02-01T13:00:00Z', 11.5),
+		(1, '2025-02-01T14:00:00Z', 12.0),
+		(1, '2025-02-01T15:00:00Z', 13.0),
+		(1, '2025-02-01T16:00:00Z', 14.0)
+	`)
+	if err != nil {
+		t.Fatalf("insert readings: %v", err)
+	}
+	repo := NewRepository(db)
+
+	readings, err := repo.GetLatestReadings("1", 2)
+	if err != nil {
+		t.Fatalf("GetLatestReadings: %v", err)
+	}
+	if len(readings) != 2 {
+		t.Fatalf("GetLatestReadings(limit=2): got %d readings, want 2", len(readings))
+	}
+	// Newest first: 16:00 (14.0), 15:00 (13.0)
+	if readings[0].Value != 14.0 || readings[1].Value != 13.0 {
+		t.Errorf("GetLatestReadings order: got values %v, want [14, 13]", []float64{readings[0].Value, readings[1].Value})
+	}
+}
+
 func TestGetLatestReadings_UnknownStation(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() {
@@ -177,7 +214,7 @@ func TestGetLatestReadings_UnknownStation(t *testing.T) {
 	}()
 	repo := NewRepository(db)
 
-	readings, err := repo.GetLatestReadings("999")
+	readings, err := repo.GetLatestReadings("999", 100)
 	if err != nil {
 		t.Fatalf("GetLatestReadings: %v", err)
 	}
@@ -331,6 +368,6 @@ func TestRepository_ImplementsInterface(t *testing.T) {
 	repo := NewRepository(db)
 	// Compile-time check; also call all methods for coverage.
 	_, _ = repo.GetStations()
-	_, _ = repo.GetLatestReadings("1")
+	_, _ = repo.GetLatestReadings("1", 100)
 	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10)
 }
