@@ -149,14 +149,12 @@ func stopServer(t *testing.T, cmd *exec.Cmd) {
 		_ = cmd.Process.Kill()
 		t.Fatalf("server did not exit in time")
 	case err := <-done:
-		if err != nil && !errors.Is(err, context.Canceled) {
+		if err != nil {
 			var exitErr *exec.ExitError
 			if errors.As(err, &exitErr) {
 				t.Fatalf("server exited non-zero: %v", err)
 			}
-			if err != nil {
-				t.Fatalf("server wait error: %v", err)
-			}
+			t.Fatalf("server wait error: %v", err)
 		}
 	}
 }
