@@ -1,19 +1,13 @@
 package httpapi
 
 import (
+	"cloudpico-server/pkg/config"
 	"net/http"
 )
 
-func NewServer(addr string) *http.Server {
-	mux := http.NewServeMux()
-
-	mux.HandleFunc("GET /healthz", handleHealthz)
-	mux.HandleFunc("GET /api/v1/stations", handleStations)
-	mux.HandleFunc("GET /api/v1/stations/{id}/latest", handleLatest)
-	mux.HandleFunc("GET /api/v1/stations/{id}/readings", handleReadings)
-
+func NewServer(config config.Config, mux *http.ServeMux) *http.Server {
 	return &http.Server{
-		Addr:    addr,
+		Addr:    config.HTTPAddr,
 		Handler: requestLogger(mux),
 	}
 }

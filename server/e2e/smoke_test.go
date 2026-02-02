@@ -14,6 +14,10 @@ import (
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/container"
+	tc "github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const repoRootRel = ".."   // relative to ./e2e
@@ -21,6 +25,9 @@ const mainPkgRel = "./cmd" // main.go lives in cmd/
 
 func TestSmoke_Healthz(t *testing.T) {
 	repoRoot := repoRootPath(t)
+
+	// Start SQLite "service" container that creates a DB file in a host temp dir
+	sqlitePath := startSQLite(t)
 
 	bin := buildBinary(t, repoRoot)
 	addr := pickFreeAddr(t)
@@ -30,6 +37,10 @@ func TestSmoke_Healthz(t *testing.T) {
 		"APP_ENV=dev",
 		"LOG_LEVEL=info",
 		"HTTP_ADDR="+addr,
+
+		// DB envs (match your db package)
+		"DB_DRIVER=sqlite3",
+		"SQLITE_PATH="+sqlitePath,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -68,17 +79,61 @@ func TestSmoke_Healthz(t *testing.T) {
 	stopServer(t, cmd)
 }
 
+func startSQLite(t *testing.T) string {
+	t.Helper()
+
+	// Host temp dir that will contain app.db
+	hostDir := t.TempDir()
+	dbPath := filepath.Join(hostDir, "app.db")
+
+	ctx := context.Background()
+
+	req := tc.ContainerRequest{
+		Image:      "nouchka/sqlite3:latest",
+		WorkingDir: "/data",
+		// Create the DB file and keep container alive
+		Entrypoint: []string{"sh", "-c"},
+		Cmd: []string{
+			"sqlite3 /data/app.db \"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\" && " +
+				"echo 'sqlite ready' && " +
+				"tail -f /dev/null",
+		},
+
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.Binds = append(hc.Binds, hostDir+":/data")
+		},
+		WaitingFor: wait.ForLog("sqlite ready").WithStartupTimeout(30 * time.Second),
+	}
+
+	c, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	if err != nil {
+		t.Fatalf("start sqlite container: %v", err)
+	}
+
+	t.Cleanup(func() {
+		_ = c.Terminate(ctx)
+	})
+
+	// Ensure file exists on host (container created it in the bind mount)
+	if _, err := os.Stat(dbPath); err != nil {
+		t.Fatalf("sqlite db file not created: %v", err)
+	}
+
+	return dbPath
+}
+
 func repoRootPath(t *testing.T) string {
 	t.Helper()
 
 	wd, err := os.Getwd()
-
 	if err != nil {
 		t.Fatalf("getwd: %v", err)
 	}
 
 	repo := filepath.Clean(filepath.Join(wd, repoRootRel))
-
 	if _, err := os.Stat(filepath.Join(repo, "go.mod")); err != nil {
 		t.Fatalf("repo root %q does not contain go.mod: %v", repo, err)
 	}

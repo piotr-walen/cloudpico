@@ -1,0 +1,237 @@
+package controller
+
+import (
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"cloudpico-server/pkg/weather/types"
+)
+
+type mockRepo struct {
+	stations    []types.Station
+	stationsErr error
+	latest      []types.Reading
+	latestErr   error
+	readings    []types.Reading
+	readingsErr error
+}
+
+func (m *mockRepo) GetStations() ([]types.Station, error) {
+	return m.stations, m.stationsErr
+}
+
+func (m *mockRepo) GetLatestReadings(stationID string) ([]types.Reading, error) {
+	return m.latest, m.latestErr
+}
+
+func (m *mockRepo) GetReadings(stationID string, from, to time.Time, limit int) ([]types.Reading, error) {
+	return m.readings, m.readingsErr
+}
+
+func Test_handleStations(t *testing.T) {
+	t.Run("returns stations on success", func(t *testing.T) {
+		stations := []types.Station{
+			{ID: "st-1", Name: "Station One"},
+			{ID: "st-2", Name: "Station Two"},
+		}
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleStations(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "application/json; charset=utf-8" {
+			t.Errorf("Content-Type = %q; want application/json", ct)
+		}
+		body := strings.TrimSpace(rec.Body.String())
+		if body == "" || !strings.Contains(body, "st-1") || !strings.Contains(body, "Station One") {
+			t.Errorf("body = %q; expected JSON with stations", body)
+		}
+	})
+
+	t.Run("returns 500 when repository fails", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleStations(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "error") || !strings.Contains(body, "db error") {
+			t.Errorf("body = %q; expected error JSON", body)
+		}
+	})
+}
+
+func Test_handleLatest(t *testing.T) {
+	t.Run("returns latest readings on success", func(t *testing.T) {
+		readings := []types.Reading{
+			{StationID: "st-1", Time: time.Now(), Value: 12.5},
+		}
+		ctrl := NewWeatherController(&mockRepo{latest: readings}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/latest", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleLatest(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "st-1") || !strings.Contains(body, "12.5") {
+			t.Errorf("body = %q; expected readings JSON", body)
+		}
+	})
+
+	t.Run("returns 400 when station id is missing", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations//latest", nil)
+		req.SetPathValue("id", "")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleLatest(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "missing station id") {
+			t.Errorf("body = %q; expected missing station id", body)
+		}
+	})
+
+	t.Run("returns 500 when repository fails", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{latestErr: errors.New("db error")}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/latest", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleLatest(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+	})
+}
+
+func Test_handleReadings(t *testing.T) {
+	t.Run("returns readings on success", func(t *testing.T) {
+		readings := []types.Reading{
+			{StationID: "st-1", Time: time.Now(), Value: 10.0},
+		}
+		ctrl := NewWeatherController(&mockRepo{readings: readings}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z&limit=10", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "st-1") {
+			t.Errorf("body = %q; expected readings JSON", body)
+		}
+	})
+
+	t.Run("returns 400 when station id is missing", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations//readings", nil)
+		req.SetPathValue("id", "")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+		}
+		if !strings.Contains(rec.Body.String(), "missing station id") {
+			t.Errorf("expected missing station id in body")
+		}
+	})
+
+	t.Run("returns 400 when from is invalid", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?from=not-a-date", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "from") && !strings.Contains(body, "RFC3339") {
+			t.Errorf("body = %q; expected invalid from error", body)
+		}
+	})
+
+	t.Run("returns 400 when to is invalid", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?to=not-a-date", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("returns 400 when from is after to", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?from=2025-01-02T00:00:00Z&to=2025-01-01T00:00:00Z", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "from") || !strings.Contains(body, "to") {
+			t.Errorf("body = %q; expected from <= to error", body)
+		}
+	})
+
+	t.Run("returns 400 when limit is invalid", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?limit=abc", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("returns 500 when repository fails", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{readingsErr: errors.New("db error")}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings", nil)
+		req.SetPathValue("id", "st-1")
+		rec := httptest.NewRecorder()
+
+		ctrl.handleReadings(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+	})
+}

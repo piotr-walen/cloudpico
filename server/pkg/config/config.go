@@ -4,13 +4,22 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
 	AppEnv   string
 	LogLevel slog.Level
 	HTTPAddr string
+
+	Driver          string
+	DSN             string
+	Path            string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	ConnMaxLifetime time.Duration
 }
 
 func LoadFromEnv() (Config, error) {
@@ -38,10 +47,53 @@ func LoadFromEnv() (Config, error) {
 		httpAddr = ":8080"
 	}
 
+	driver := strings.TrimSpace(os.Getenv("DB_DRIVER"))
+	if driver == "" {
+		driver = "sqlite3"
+	}
+	dsn := strings.TrimSpace(os.Getenv("DB_DSN"))
+	path := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
+	if path == "" {
+		path = "../dev/sqlite/app.db"
+	}
+
+	maxOpenConnsStr := strings.TrimSpace(os.Getenv("DB_MAX_OPEN_CONNS"))
+	if maxOpenConnsStr == "" {
+		maxOpenConnsStr = "1"
+	}
+	maxOpenConns, err := strconv.Atoi(maxOpenConnsStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid DB_MAX_OPEN_CONNS %q: %w", maxOpenConnsStr, err)
+	}
+
+	maxIdleConnsStr := strings.TrimSpace(os.Getenv("DB_MAX_IDLE_CONNS"))
+	if maxIdleConnsStr == "" {
+		maxIdleConnsStr = "1"
+	}
+	maxIdleConns, err := strconv.Atoi(maxIdleConnsStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid DB_MAX_IDLE_CONNS %q: %w", maxIdleConnsStr, err)
+	}
+
+	connMaxLifetimeStr := strings.TrimSpace(os.Getenv("DB_CONN_MAX_LIFETIME"))
+	if connMaxLifetimeStr == "" {
+		connMaxLifetimeStr = "0s"
+	}
+	connMaxLifetime, err := time.ParseDuration(connMaxLifetimeStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid DB_CONN_MAX_LIFETIME %q: %w", strings.TrimSpace(os.Getenv("DB_CONN_MAX_LIFETIME")), err)
+	}
+
 	return Config{
-		AppEnv:   appEnv,
-		LogLevel: level,
-		HTTPAddr: httpAddr,
+		AppEnv:          appEnv,
+		LogLevel:        level,
+		HTTPAddr:        httpAddr,
+		Driver:          driver,
+		DSN:             dsn,
+		Path:            path,
+		MaxOpenConns:    maxOpenConns,
+		MaxIdleConns:    maxIdleConns,
+		ConnMaxLifetime: connMaxLifetime,
 	}, nil
 }
 
