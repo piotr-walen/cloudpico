@@ -185,6 +185,89 @@ func Test_parseReadingsQuery(t *testing.T) {
 	})
 }
 
+func Test_parseLatestQuery(t *testing.T) {
+	t.Run("no limit returns default 100", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest", nil)
+		limit, err := parseLatestQuery(req)
+		if err != nil {
+			t.Fatalf("parseLatestQuery() err = %v; want nil", err)
+		}
+		if limit != 100 {
+			t.Errorf("limit = %d; want 100", limit)
+		}
+	})
+	t.Run("valid limit", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=50", nil)
+		limit, err := parseLatestQuery(req)
+		if err != nil {
+			t.Fatalf("parseLatestQuery() err = %v; want nil", err)
+		}
+		if limit != 50 {
+			t.Errorf("limit = %d; want 50", limit)
+		}
+	})
+	t.Run("limit 1 allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=1", nil)
+		limit, err := parseLatestQuery(req)
+		if err != nil {
+			t.Fatalf("parseLatestQuery() err = %v; want nil", err)
+		}
+		if limit != 1 {
+			t.Errorf("limit = %d; want 1", limit)
+		}
+	})
+	t.Run("limit 1000 allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=1000", nil)
+		limit, err := parseLatestQuery(req)
+		if err != nil {
+			t.Fatalf("parseLatestQuery() err = %v; want nil", err)
+		}
+		if limit != 1000 {
+			t.Errorf("limit = %d; want 1000", limit)
+		}
+	})
+	t.Run("invalid limit (non-integer) returns error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=abc", nil)
+		_, err := parseLatestQuery(req)
+		if err == nil {
+			t.Fatal("parseLatestQuery() err = nil; want non-nil")
+		}
+		if err.Error() != "invalid 'limit' (expected integer)" {
+			t.Errorf("err = %q; want invalid 'limit' (expected integer)", err.Error())
+		}
+	})
+	t.Run("limit zero returns error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=0", nil)
+		_, err := parseLatestQuery(req)
+		if err == nil {
+			t.Fatal("parseLatestQuery() err = nil; want non-nil")
+		}
+		if err.Error() != "'limit' must be > 0" {
+			t.Errorf("err = %q; want 'limit' must be > 0", err.Error())
+		}
+	})
+	t.Run("limit negative returns error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=-5", nil)
+		_, err := parseLatestQuery(req)
+		if err == nil {
+			t.Fatal("parseLatestQuery() err = nil; want non-nil")
+		}
+		if err.Error() != "'limit' must be > 0" {
+			t.Errorf("err = %q; want 'limit' must be > 0", err.Error())
+		}
+	})
+	t.Run("limit over 1000 returns error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/latest?limit=1001", nil)
+		_, err := parseLatestQuery(req)
+		if err == nil {
+			t.Fatal("parseLatestQuery() err = nil; want non-nil")
+		}
+		if err.Error() != "'limit' must be <= 1000" {
+			t.Errorf("err = %q; want 'limit' must be <= 1000", err.Error())
+		}
+	})
+}
+
 func Test_zeroAsNullTime(t *testing.T) {
 	t.Run("zero time returns nil", func(t *testing.T) {
 		got := zeroAsNullTime(time.Time{})
