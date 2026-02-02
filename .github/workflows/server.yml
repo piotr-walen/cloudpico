@@ -29,7 +29,6 @@ jobs:
           cache-dependency-path: server/go.sum
 
       - name: Build
-        working-directory: server
         run: go build -o cloudpico-server ./...
 
       - name: Run golangci-lint
