@@ -14,10 +14,6 @@ import (
 	"syscall"
 	"testing"
 	"time"
-
-	"github.com/docker/docker/api/types/container"
-	tc "github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const repoRootRel = ".."   // relative to ./e2e
@@ -82,45 +78,15 @@ func TestSmoke_Healthz(t *testing.T) {
 func startSQLite(t *testing.T) string {
 	t.Helper()
 
-	// Host temp dir that will contain app.db
 	hostDir := t.TempDir()
 	dbPath := filepath.Join(hostDir, "app.db")
 
-	ctx := context.Background()
-
-	req := tc.ContainerRequest{
-		Image:      "nouchka/sqlite3:latest",
-		WorkingDir: "/data",
-		// Create the DB file and keep container alive
-		Entrypoint: []string{"sh", "-c"},
-		Cmd: []string{
-			"sqlite3 /data/app.db \"PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;\" && " +
-				"echo 'sqlite ready' && " +
-				"tail -f /dev/null",
-		},
-
-		HostConfigModifier: func(hc *container.HostConfig) {
-			hc.Binds = append(hc.Binds, hostDir+":/data")
-		},
-		WaitingFor: wait.ForLog("sqlite ready").WithStartupTimeout(30 * time.Second),
-	}
-
-	c, err := tc.GenericContainer(ctx, tc.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+	// Optional: pre-create the file (not required for SQLite, but harmless)
+	f, err := os.Create(dbPath)
 	if err != nil {
-		t.Fatalf("start sqlite container: %v", err)
+		t.Fatalf("create sqlite db file: %v", err)
 	}
-
-	t.Cleanup(func() {
-		_ = c.Terminate(ctx)
-	})
-
-	// Ensure file exists on host (container created it in the bind mount)
-	if _, err := os.Stat(dbPath); err != nil {
-		t.Fatalf("sqlite db file not created: %v", err)
-	}
+	_ = f.Close()
 
 	return dbPath
 }
