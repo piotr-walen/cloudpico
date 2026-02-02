@@ -32,3 +32,8 @@ Display coverage
 ```
 go tool cover -func=coverage.out
 ```
+
+Run e2e test
+```
+go test -v ./... -tags=e2e
+```
