@@ -20,13 +20,10 @@ Terminates TLS and proxies external HTTP requests to the Go server.
 
 Components
 
-firmware/ — TinyGo firmware for Raspberry Pi Pico (sensor reads + MQTT publish)
-
-server/ — Go server (MQTT subscriber + HTTP API + SQLite persistence + HTML web client)
-
-deploy/ — Docker Compose, Mosquitto/Nginx configs, deployment notes
-
-docs/ — Topic conventions, payload schema, and project notes
+- firmware/ — TinyGo firmware for Raspberry Pi Pico (sensor reads + MQTT publish)
+- server/ — Go server (MQTT subscriber + HTTP API + SQLite persistence + HTML web client)
+- deploy/ — Docker Compose, Mosquitto/Nginx configs, deployment notes
+- docs/ — Topic conventions, payload schema, and project notes
 
 Data Flow
 
