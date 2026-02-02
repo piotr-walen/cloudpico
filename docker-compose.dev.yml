@@ -1,0 +1,20 @@
+name: myapp-dev
+
+services:
+  sqlite:
+    image: nouchka/sqlite3:latest
+    container_name: myapp-sqlite
+    working_dir: /data
+    volumes:
+      - sqlite-data:/data
+    # Create the file + set a couple pragmas, then keep container alive
+    command: >
+      sh -lc "
+        mkdir -p /data &&
+        sqlite3 /data/app.db 'PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;' &&
+        echo 'SQLite DB ready at /data/app.db' &&
+        tail -f /dev/null
+      "
+
+volumes:
+  sqlite-data:
