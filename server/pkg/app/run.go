@@ -19,9 +19,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	defer func() {
-		err = db.Close(dbConn)
-		if err != nil {
-			slog.Error("db close", "error", err)
+		closeErr := db.Close(dbConn)
+		if closeErr != nil {
+			slog.Error("db close", "error", closeErr)
 		}
 	}()
 

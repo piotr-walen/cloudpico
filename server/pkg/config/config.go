@@ -63,7 +63,7 @@ func LoadFromEnv() (Config, error) {
 	}
 	maxOpenConns, err := strconv.Atoi(maxOpenConnsStr)
 	if err != nil {
-		return Config{}, fmt.Errorf("invalid DB_MAX_OPEN_CONNS %q: %w", strings.TrimSpace(os.Getenv("DB_MAX_OPEN_CONNS")), err)
+		return Config{}, fmt.Errorf("invalid DB_MAX_OPEN_CONNS %q: %w", maxOpenConnsStr, err)
 	}
 
 	maxIdleConnsStr := strings.TrimSpace(os.Getenv("DB_MAX_IDLE_CONNS"))
@@ -72,7 +72,7 @@ func LoadFromEnv() (Config, error) {
 	}
 	maxIdleConns, err := strconv.Atoi(maxIdleConnsStr)
 	if err != nil {
-		return Config{}, fmt.Errorf("invalid DB_MAX_IDLE_CONNS %q: %w", strings.TrimSpace(os.Getenv("DB_MAX_IDLE_CONNS")), err)
+		return Config{}, fmt.Errorf("invalid DB_MAX_IDLE_CONNS %q: %w", maxIdleConnsStr, err)
 	}
 
 	connMaxLifetimeStr := strings.TrimSpace(os.Getenv("DB_CONN_MAX_LIFETIME"))
