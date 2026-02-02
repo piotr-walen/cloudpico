@@ -29,7 +29,7 @@ jobs:
           cache-dependency-path: server/go.sum
 
       - name: Build
-        run: go build -o cloudpico-server ./...
+        run: go build ./...
 
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
@@ -41,3 +41,6 @@ jobs:
           go test -coverpkg=./... -coverprofile=coverage.out -covermode=atomic -timeout 2m ./...
       - name: Display coverage summary
         run: go tool cover -func=coverage.out
+
+      - name: E2E tests
+        run: go test ./... -tags=e2e -timeout 2m
