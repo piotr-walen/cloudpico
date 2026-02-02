@@ -34,6 +34,11 @@ func main() {
 		fmt.Fprintf(os.Stderr, "db open: %v\n", err)
 		os.Exit(1)
 	}
+	defer func() {
+		if closeErr := conn.Close(); closeErr != nil {
+			slog.Error("db close", "err", closeErr)
+		}
+	}()
 
 	if len(os.Args) < 2 {
 		fmt.Fprintf(os.Stderr, "usage: %s <command>\n", os.Args[0])
@@ -73,13 +78,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
 	}
-
-	defer func() {
-		if closeErr := conn.Close(); closeErr != nil {
-			slog.Error("db close", "err", closeErr)
-		}
-	}()
-
 }
 
 func Open(dbPath string) (*sql.DB, error) {
@@ -100,13 +98,6 @@ func Open(dbPath string) (*sql.DB, error) {
 	}
 
 	return db, nil
-}
-
-func Close(db *sql.DB) error {
-	if db == nil {
-		return nil
-	}
-	return db.Close()
 }
 
 func buildDSN(dbPath string) (string, error) {
