@@ -8,13 +8,10 @@ Architecture
 
 - Device (Raspberry Pi Pico + TinyGo)
 Reads sensors at a fixed interval and publishes telemetry messages to MQTT.
-
 - MQTT Broker (Mosquitto)
 Receives telemetry and acts as the message backbone between device(s) and server.
-
 - Backend (Go server)
 Subscribes to telemetry topics, validates/parses payloads, stores readings in SQLite, provides an HTTP API, and serves the web UI.
-
 - Reverse Proxy (Nginx)
 Terminates TLS and proxies external HTTP requests to the Go server.
 
@@ -28,11 +25,7 @@ Components
 Data Flow
 
 - Pico samples sensors (temperature/humidity/pressure/etc.).
-
 - Pico publishes telemetry to Mosquitto on a station-specific MQTT topic.
-
 - Go server subscribes to telemetry topics and ingests messages.
-
 - Readings are stored in SQLite for historical queries.
-
 - Users open the web client (served by the Go server, via Nginx) which calls the API to render latest values and history.
