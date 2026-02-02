@@ -1,4 +1,4 @@
-// server/cmd/server/main.go
+// server/cmd/main.go
 package main
 
 import (
