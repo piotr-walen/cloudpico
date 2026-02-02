@@ -3,14 +3,14 @@ package app
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"cloudpico-server/pkg/config"
-	"cloudpico-server/pkg/db"
-	"cloudpico-server/pkg/httpapi"
+	db "cloudpico-server/pkg/db"
+	httpapi "cloudpico-server/pkg/httpapi"
+	weather "cloudpico-server/pkg/weather"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -18,16 +18,28 @@ func Run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
-	defer func() { _ = db.Close(dbConn) }()
+	defer func() {
+		err = db.Close(dbConn)
+		if err != nil {
+			slog.Error("db close", "error", err)
+		}
+	}()
 
 	var ok int
-	if err := dbConn.QueryRow(`SELECT 1`).Scan(&ok); err != nil {
-		log.Fatal(err)
+	err = dbConn.QueryRow(`SELECT 1`).Scan(&ok)
+	if err != nil {
+		return err
 	}
+	if ok != 1 {
+		return errors.New("database connection failed")
+	}
+	slog.Info("database connection successful")
 
-	slog.Info("DB OK", "ok", ok)
+	mux := httpapi.NewMux(dbConn)
 
-	srv := httpapi.NewServer(cfg)
+	weather.RegisterFeature(mux, dbConn)
+
+	srv := httpapi.NewServer(cfg, mux)
 
 	errCh := make(chan error, 1)
 	go func() {
