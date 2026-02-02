@@ -3,7 +3,7 @@ package controller
 import (
 	"net/http"
 
-	"cloudpico-server/pkg/utils"
+	"cloudpico-server/internal/utils"
 )
 
 func (c *weatherControllerImpl) handleStations(w http.ResponseWriter, r *http.Request) {

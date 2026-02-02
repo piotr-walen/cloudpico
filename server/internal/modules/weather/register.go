@@ -1,8 +1,8 @@
 package weather
 
 import (
-	"cloudpico-server/pkg/weather/controller"
-	"cloudpico-server/pkg/weather/repository"
+	"cloudpico-server/internal/modules/weather/controller"
+	"cloudpico-server/internal/modules/weather/repository"
 	"database/sql"
 	"net/http"
 )

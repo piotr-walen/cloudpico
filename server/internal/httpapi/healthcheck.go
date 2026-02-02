@@ -1,7 +1,7 @@
 package httpapi
 
 import (
-	"cloudpico-server/pkg/utils"
+	"cloudpico-server/internal/utils"
 	"database/sql"
 	"log/slog"
 	"net/http"

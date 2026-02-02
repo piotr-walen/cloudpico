@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"cloudpico-server/pkg/weather/types"
+	"cloudpico-server/internal/modules/weather/types"
 )
 
 type mockRepo struct {

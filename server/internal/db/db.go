@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"cloudpico-server/pkg/config"
+	"cloudpico-server/internal/config"
 
 	_ "github.com/mattn/go-sqlite3"
 )

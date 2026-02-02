@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"cloudpico-server/pkg/weather/repository"
+	"cloudpico-server/internal/modules/weather/repository"
 	"net/http"
 )
 
