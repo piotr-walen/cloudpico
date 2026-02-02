@@ -7,7 +7,7 @@ import (
 
 	"github.com/lmittmann/tint"
 
-	"cloudpico-server/pkg/config"
+	"cloudpico-server/internal/config"
 )
 
 func New(cfg config.Config, version string, appName string) *slog.Logger {

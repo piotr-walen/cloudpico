@@ -9,9 +9,9 @@ import (
 	"os/signal"
 	"syscall"
 
-	"cloudpico-server/pkg/app"
-	"cloudpico-server/pkg/config"
-	"cloudpico-server/pkg/logging"
+	"cloudpico-server/internal/app"
+	"cloudpico-server/internal/config"
+	"cloudpico-server/internal/logging"
 )
 
 var version = "dev"

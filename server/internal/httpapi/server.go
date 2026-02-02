@@ -1,7 +1,7 @@
 package httpapi
 
 import (
-	"cloudpico-server/pkg/config"
+	"cloudpico-server/internal/config"
 	"net/http"
 )
 

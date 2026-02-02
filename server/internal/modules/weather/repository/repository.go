@@ -7,7 +7,7 @@ import (
 	"log/slog"
 	"time"
 
-	"cloudpico-server/pkg/weather/types"
+	"cloudpico-server/internal/modules/weather/types"
 )
 
 //go:embed sql/get-stations.sql

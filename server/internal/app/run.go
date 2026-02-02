@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"time"
 
-	"cloudpico-server/pkg/config"
-	db "cloudpico-server/pkg/db"
-	httpapi "cloudpico-server/pkg/httpapi"
-	weather "cloudpico-server/pkg/weather"
+	"cloudpico-server/internal/config"
+	db "cloudpico-server/internal/db"
+	httpapi "cloudpico-server/internal/httpapi"
+	weather "cloudpico-server/internal/modules/weather"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
