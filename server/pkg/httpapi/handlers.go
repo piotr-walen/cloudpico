@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -119,7 +120,7 @@ func parseReadingsQuery(r *http.Request) (from time.Time, to time.Time, limit in
 			return time.Time{}, time.Time{}, 0, errors.New("'limit' must be > 0")
 		}
 		if n > 1000 {
-			n = 1000
+			return time.Time{}, time.Time{}, 0, errors.New("'limit' must be <= 1000")
 		}
 		limit = n
 	}
@@ -137,7 +138,10 @@ func zeroAsNullTime(t time.Time) any {
 func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
+	err := json.NewEncoder(w).Encode(v)
+	if err != nil {
+		slog.Error("failed to write JSON", "error", err)
+	}
 }
 
 func writeError(w http.ResponseWriter, status int, msg string) {

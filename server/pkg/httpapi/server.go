@@ -2,7 +2,6 @@ package httpapi
 
 import (
 	"net/http"
-	"time"
 )
 
 func NewServer(addr string) *http.Server {
@@ -14,8 +13,7 @@ func NewServer(addr string) *http.Server {
 	mux.HandleFunc("GET /api/v1/stations/{id}/readings", handleReadings)
 
 	return &http.Server{
-		Addr:              addr,
-		Handler:           requestLogger(mux),
-		ReadHeaderTimeout: 5 * time.Second,
+		Addr:    addr,
+		Handler: requestLogger(mux),
 	}
 }
