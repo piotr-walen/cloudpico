@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"cloudpico-server/pkg/config"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -12,7 +13,7 @@ import (
 func newTestServer(t *testing.T) *httptest.Server {
 	t.Helper()
 
-	srv := NewServer(":0")
+	srv := NewServer(config.Config{HTTPAddr: ":0"})
 	ts := httptest.NewServer(srv.Handler)
 
 	t.Cleanup(ts.Close)

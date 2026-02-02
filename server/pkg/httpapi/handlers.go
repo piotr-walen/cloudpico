@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"cloudpico-server/pkg/config"
+	"cloudpico-server/pkg/db"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -20,11 +22,33 @@ type Reading struct {
 	Value     float64   `json:"value"`
 }
 
-func handleHealthz(w http.ResponseWriter, r *http.Request) {
+type weatherAPIImpl struct {
+	config config.Config
+}
+
+type WeatherAPI interface {
+	HandleHealthz(w http.ResponseWriter, r *http.Request)
+	HandleStations(w http.ResponseWriter, r *http.Request)
+	HandleLatest(w http.ResponseWriter, r *http.Request)
+	HandleReadings(w http.ResponseWriter, r *http.Request)
+}
+
+func NewWeatherAPI(config config.Config) WeatherAPI {
+	return &weatherAPIImpl{config: config}
+}
+
+func (weatherAPI *weatherAPIImpl) HandleHealthz(w http.ResponseWriter, r *http.Request) {
+	dbConn, err := db.Open(weatherAPI.config)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer func() { _ = db.Close(dbConn) }()
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func handleStations(w http.ResponseWriter, r *http.Request) {
+func (weatherAPI *weatherAPIImpl) HandleStations(w http.ResponseWriter, r *http.Request) {
 	// TODO: replace with real data source
 	stations := []Station{
 		{ID: "st-001", Name: "Central"},
@@ -33,7 +57,7 @@ func handleStations(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, stations)
 }
 
-func handleLatest(w http.ResponseWriter, r *http.Request) {
+func (weatherAPI *weatherAPIImpl) HandleLatest(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing station id")
@@ -48,7 +72,7 @@ func handleLatest(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, latest)
 }
 
-func handleReadings(w http.ResponseWriter, r *http.Request) {
+func (weatherAPI *weatherAPIImpl) HandleReadings(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
 		writeError(w, http.StatusBadRequest, "missing station id")
