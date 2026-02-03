@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"time"
 )
 
 var dashboardTmpl *template.Template
@@ -35,4 +36,26 @@ func RenderDashboard(w io.Writer, data any) error {
 		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
 	}
 	return dashboardTmpl.ExecuteTemplate(w, "base.html", data)
+}
+
+// CurrentConditionsData is the view model for the current-conditions partial.
+type CurrentConditionsData struct {
+	StationName string
+	Reading     *ReadingPartial // nil when no recent reading
+}
+
+// ReadingPartial exposes reading fields for the template (avoids importing types in views).
+type ReadingPartial struct {
+	Value float64
+	Time  time.Time
+}
+
+// RenderCurrentConditionsPartial executes only the current-conditions partial into w.
+// Use for HTMX fragment refresh.
+func RenderCurrentConditionsPartial(w io.Writer, data CurrentConditionsData) error {
+	if dashboardTmpl == nil {
+		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
+	}
+
+	return dashboardTmpl.ExecuteTemplate(w, "partials/current-conditions.html", data)
 }

@@ -1,0 +1,12 @@
+{{ define "partials/current-conditions.html" }}
+<div class="current-conditions card" id="current-conditions">
+  <h2 class="card-title">Current conditions</h2>
+  {{ if .Reading }}
+  <p class="station-name">{{ .StationName }}</p>
+  <p class="reading-value">{{ printf "%.1f" .Reading.Value }}°C</p>
+  <p class="reading-time" title="{{ .Reading.Time.Format "2006-01-02T15:04:05Z07:00" }}">Updated {{ .Reading.Time.Format "3:04 PM" }}</p>
+  {{ else }}
+  <p class="no-data">No recent reading</p>
+  {{ end }}
+</div>
+{{ end }}

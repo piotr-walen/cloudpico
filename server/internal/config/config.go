@@ -19,12 +19,12 @@ type Config struct {
 	// Set via STATIC_DIR (relative paths are resolved against the process working directory at startup).
 	StaticDir string
 
-	Driver          string
-	DSN             string
-	Path            string
-	MaxOpenConns    int
-	MaxIdleConns    int
-	ConnMaxLifetime time.Duration
+	SQLiteDriver          string
+	SQLiteDSN             string
+	SQLitePath            string
+	SQLiteMaxOpenConns    int
+	SQLiteMaxIdleConns    int
+	SQLiteConnMaxLifetime time.Duration
 }
 
 func LoadFromEnv() (Config, error) {
@@ -61,54 +61,54 @@ func LoadFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("STATIC_DIR %q: %w", staticDir, err)
 	}
 
-	driver := strings.TrimSpace(os.Getenv("DB_DRIVER"))
-	if driver == "" {
-		driver = "sqlite3"
+	sqliteDriver := strings.TrimSpace(os.Getenv("SQLITE_DRIVER"))
+	if sqliteDriver == "" {
+		sqliteDriver = "sqlite3"
 	}
-	dsn := strings.TrimSpace(os.Getenv("DB_DSN"))
-	path := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
-	if path == "" {
-		path = "../dev/sqlite/app.db"
-	}
-
-	maxOpenConnsStr := strings.TrimSpace(os.Getenv("DB_MAX_OPEN_CONNS"))
-	if maxOpenConnsStr == "" {
-		maxOpenConnsStr = "1"
-	}
-	maxOpenConns, err := strconv.Atoi(maxOpenConnsStr)
-	if err != nil {
-		return Config{}, fmt.Errorf("invalid DB_MAX_OPEN_CONNS %q: %w", maxOpenConnsStr, err)
+	sqliteDSN := strings.TrimSpace(os.Getenv("SQLITE_DSN"))
+	sqlitePath := strings.TrimSpace(os.Getenv("SQLITE_PATH"))
+	if sqlitePath == "" {
+		sqlitePath = "../dev/sqlite/app.db"
 	}
 
-	maxIdleConnsStr := strings.TrimSpace(os.Getenv("DB_MAX_IDLE_CONNS"))
-	if maxIdleConnsStr == "" {
-		maxIdleConnsStr = "1"
+	sqliteMaxOpenConnsStr := strings.TrimSpace(os.Getenv("SQLITE_MAX_OPEN_CONNS"))
+	if sqliteMaxOpenConnsStr == "" {
+		sqliteMaxOpenConnsStr = "1"
 	}
-	maxIdleConns, err := strconv.Atoi(maxIdleConnsStr)
+	sqliteMaxOpenConns, err := strconv.Atoi(sqliteMaxOpenConnsStr)
 	if err != nil {
-		return Config{}, fmt.Errorf("invalid DB_MAX_IDLE_CONNS %q: %w", maxIdleConnsStr, err)
+		return Config{}, fmt.Errorf("invalid SQLITE_MAX_OPEN_CONNS %q: %w", sqliteMaxOpenConnsStr, err)
 	}
 
-	connMaxLifetimeStr := strings.TrimSpace(os.Getenv("DB_CONN_MAX_LIFETIME"))
-	if connMaxLifetimeStr == "" {
-		connMaxLifetimeStr = "0s"
+	sqliteMaxIdleConnsStr := strings.TrimSpace(os.Getenv("SQLITE_MAX_IDLE_CONNS"))
+	if sqliteMaxIdleConnsStr == "" {
+		sqliteMaxIdleConnsStr = "1"
 	}
-	connMaxLifetime, err := time.ParseDuration(connMaxLifetimeStr)
+	sqliteMaxIdleConns, err := strconv.Atoi(sqliteMaxIdleConnsStr)
 	if err != nil {
-		return Config{}, fmt.Errorf("invalid DB_CONN_MAX_LIFETIME %q: %w", strings.TrimSpace(os.Getenv("DB_CONN_MAX_LIFETIME")), err)
+		return Config{}, fmt.Errorf("invalid SQLITE_MAX_IDLE_CONNS %q: %w", sqliteMaxIdleConnsStr, err)
+	}
+
+	sqliteConnMaxLifetimeStr := strings.TrimSpace(os.Getenv("SQLITE_CONN_MAX_LIFETIME"))
+	if sqliteConnMaxLifetimeStr == "" {
+		sqliteConnMaxLifetimeStr = "0s"
+	}
+	sqliteConnMaxLifetime, err := time.ParseDuration(sqliteConnMaxLifetimeStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid SQLITE_CONN_MAX_LIFETIME %q: %w", strings.TrimSpace(os.Getenv("SQLITE_CONN_MAX_LIFETIME")), err)
 	}
 
 	return Config{
-		AppEnv:          appEnv,
-		LogLevel:        level,
-		HTTPAddr:        httpAddr,
-		StaticDir:       staticDir,
-		Driver:          driver,
-		DSN:             dsn,
-		Path:            path,
-		MaxOpenConns:    maxOpenConns,
-		MaxIdleConns:    maxIdleConns,
-		ConnMaxLifetime: connMaxLifetime,
+		AppEnv:                appEnv,
+		LogLevel:              level,
+		HTTPAddr:              httpAddr,
+		StaticDir:             staticDir,
+		SQLiteDriver:          sqliteDriver,
+		SQLiteDSN:             sqliteDSN,
+		SQLitePath:            sqlitePath,
+		SQLiteMaxOpenConns:    sqliteMaxOpenConns,
+		SQLiteMaxIdleConns:    sqliteMaxIdleConns,
+		SQLiteConnMaxLifetime: sqliteConnMaxLifetime,
 	}, nil
 }
 

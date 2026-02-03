@@ -4,7 +4,11 @@
 <section class="dashboard">
   <h1>Dashboard</h1>
   <p class="lead">Weather stations and readings.</p>
-  <div id="dashboard-content" class="dashboard-content">
+  <div id="current-conditions-container"
+       class="dashboard-content"
+       hx-get="/partials/current-conditions"
+       hx-trigger="load, every 30s"
+       hx-swap="innerHTML">
     <p>Loading…</p>
   </div>
 </section>

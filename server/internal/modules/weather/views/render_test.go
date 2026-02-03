@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+	"time"
 )
 
 func TestLoadTemplates_success(t *testing.T) {
@@ -123,6 +124,63 @@ func TestRenderDashboard_writeError(t *testing.T) {
 	}
 	if err != io.ErrClosedPipe {
 		t.Errorf("RenderDashboard() = %v; want %v", err, io.ErrClosedPipe)
+	}
+}
+
+func TestRenderCurrentConditionsPartial_notLoaded(t *testing.T) {
+	prev := dashboardTmpl
+	dashboardTmpl = nil
+	t.Cleanup(func() { dashboardTmpl = prev })
+
+	var buf bytes.Buffer
+	err := RenderCurrentConditionsPartial(&buf, CurrentConditionsData{})
+	if err == nil {
+		t.Fatal("RenderCurrentConditionsPartial() = nil; want error when templates not loaded")
+	}
+	if !strings.Contains(err.Error(), "not loaded") {
+		t.Errorf("err = %q; want message containing \"not loaded\"", err.Error())
+	}
+}
+
+func TestRenderCurrentConditionsPartial_withReading(t *testing.T) {
+	if err := LoadTemplates(); err != nil {
+		t.Fatalf("LoadTemplates(): %v", err)
+	}
+	ts := time.Date(2025, 2, 3, 14, 30, 0, 0, time.UTC)
+	data := CurrentConditionsData{
+		StationName: "Home Station",
+		Reading:     &ReadingPartial{Value: 22.5, Time: ts},
+	}
+	var buf bytes.Buffer
+	err := RenderCurrentConditionsPartial(&buf, data)
+	if err != nil {
+		t.Fatalf("RenderCurrentConditionsPartial() = %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "Current conditions") {
+		t.Errorf("output missing \"Current conditions\"; got %q", out)
+	}
+	if !strings.Contains(out, "Home Station") {
+		t.Errorf("output missing station name; got %q", out)
+	}
+	if !strings.Contains(out, "22.5") {
+		t.Errorf("output missing value; got %q", out)
+	}
+}
+
+func TestRenderCurrentConditionsPartial_noReading(t *testing.T) {
+	if err := LoadTemplates(); err != nil {
+		t.Fatalf("LoadTemplates(): %v", err)
+	}
+	data := CurrentConditionsData{StationName: "Home", Reading: nil}
+	var buf bytes.Buffer
+	err := RenderCurrentConditionsPartial(&buf, data)
+	if err != nil {
+		t.Fatalf("RenderCurrentConditionsPartial() = %v", err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "No recent reading") {
+		t.Errorf("output missing \"No recent reading\"; got %q", out)
 	}
 }
 

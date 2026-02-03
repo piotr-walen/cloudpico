@@ -15,6 +15,17 @@ import (
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
+	slog.Info("config loaded",
+		"appEnv", cfg.AppEnv,
+		"logLevel", cfg.LogLevel.String(),
+		"httpAddr", cfg.HTTPAddr,
+		"staticDir", cfg.StaticDir,
+		"sqliteDriver", cfg.SQLiteDriver,
+		"sqlitePath", cfg.SQLitePath,
+		"sqliteMaxOpenConns", cfg.SQLiteMaxOpenConns,
+		"sqliteMaxIdleConns", cfg.SQLiteMaxIdleConns,
+		"sqliteConnMaxLifetime", cfg.SQLiteConnMaxLifetime,
+	)
 	dbConn, err := db.Open(cfg)
 	if err != nil {
 		return err
