@@ -93,7 +93,9 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 				return
 			}
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			w.Write(buf.Bytes())
+			if _, err := w.Write(buf.Bytes()); err != nil {
+				slog.Error("current conditions: write response failed", "error", err)
+			}
 			return
 		}
 		stationID = stations[0].ID
@@ -131,5 +133,7 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Write(buf.Bytes())
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		slog.Error("current conditions: write response failed", "error", err)
+	}
 }
