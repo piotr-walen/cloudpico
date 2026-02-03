@@ -58,7 +58,7 @@ func LoadFromEnv() (Config, error) {
 	}
 	staticDir, err = filepath.Abs(staticDir)
 	if err != nil {
-		return Config{}, fmt.Errorf("STATIC_DIR %q: %w", strings.TrimSpace(os.Getenv("STATIC_DIR")), err)
+		return Config{}, fmt.Errorf("STATIC_DIR %q: %w", staticDir, err)
 	}
 
 	driver := strings.TrimSpace(os.Getenv("DB_DRIVER"))

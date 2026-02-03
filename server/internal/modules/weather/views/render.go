@@ -9,10 +9,10 @@ import (
 
 var dashboardTmpl *template.Template
 
-// LoadTemplates loads embedded dashboard templates. Call during startup before
-// serving requests; if it returns an error, do not start the server.
-func LoadTemplates() error {
-	sub, err := fs.Sub(viewsFS, "templates")
+// loadTemplatesFromFS loads dashboard templates from the given fs and dir.
+// Used by LoadTemplates and by tests to simulate failure scenarios.
+func loadTemplatesFromFS(fsys fs.FS, dir string) error {
+	sub, err := fs.Sub(fsys, dir)
 	if err != nil {
 		return err
 	}
@@ -21,6 +21,12 @@ func LoadTemplates() error {
 		return err
 	}
 	return nil
+}
+
+// LoadTemplates loads embedded dashboard templates. Call during startup before
+// serving requests; if it returns an error, do not start the server.
+func LoadTemplates() error {
+	return loadTemplatesFromFS(viewsFS, "templates")
 }
 
 // RenderDashboard executes the dashboard page (base layout + dashboard content) into w.
