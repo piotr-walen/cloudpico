@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,10 @@ type Config struct {
 	AppEnv   string
 	LogLevel slog.Level
 	HTTPAddr string
+
+	// StaticDir is the absolute path to the directory served at /static/.
+	// Set via STATIC_DIR (relative paths are resolved against the process working directory at startup).
+	StaticDir string
 
 	Driver          string
 	DSN             string
@@ -45,6 +50,15 @@ func LoadFromEnv() (Config, error) {
 	httpAddr := strings.TrimSpace(os.Getenv("HTTP_ADDR"))
 	if httpAddr == "" {
 		httpAddr = ":8080"
+	}
+
+	staticDir := strings.TrimSpace(os.Getenv("STATIC_DIR"))
+	if staticDir == "" {
+		staticDir = "static"
+	}
+	staticDir, err = filepath.Abs(staticDir)
+	if err != nil {
+		return Config{}, fmt.Errorf("STATIC_DIR %q: %w", staticDir, err)
 	}
 
 	driver := strings.TrimSpace(os.Getenv("DB_DRIVER"))
@@ -88,6 +102,7 @@ func LoadFromEnv() (Config, error) {
 		AppEnv:          appEnv,
 		LogLevel:        level,
 		HTTPAddr:        httpAddr,
+		StaticDir:       staticDir,
 		Driver:          driver,
 		DSN:             dsn,
 		Path:            path,

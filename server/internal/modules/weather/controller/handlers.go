@@ -1,10 +1,25 @@
 package controller
 
 import (
+	"log/slog"
 	"net/http"
 
+	"cloudpico-server/internal/modules/weather/views"
 	"cloudpico-server/internal/utils"
 )
+
+func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := views.RenderDashboard(w, nil); err != nil {
+		slog.Error("dashboard template render failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to render page")
+		return
+	}
+}
 
 func (c *weatherControllerImpl) handleStations(w http.ResponseWriter, r *http.Request) {
 	stations, err := c.repository.GetStations()
