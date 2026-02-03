@@ -60,6 +60,25 @@ func Test_handleDashboard(t *testing.T) {
 		}
 	})
 
+	t.Run("returns 500 and error body when GetStations fails", func(t *testing.T) {
+		ctrlErr := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		ctrlErr.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "failed to load stations") {
+			t.Errorf("body = %q; expected 'failed to load stations'", body)
+		}
+		if !strings.Contains(body, "error") {
+			t.Errorf("body = %q; expected error JSON", body)
+		}
+	})
+
 	t.Run("returns 500 and error body when render fails", func(t *testing.T) {
 		// Render fails when templates are not loaded (dashboardTmpl is nil)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
@@ -97,6 +116,53 @@ func Test_handleDashboard(t *testing.T) {
 		body := rec.Body.String()
 		if body == "" || !strings.Contains(body, "<!") || !strings.Contains(body, "html") {
 			t.Errorf("body should be HTML; got %q", body)
+		}
+	})
+
+	stations := []types.Station{
+		{ID: "st-1", Name: "Station One"},
+		{ID: "st-2", Name: "Station Two"},
+	}
+
+	t.Run("defaults to first station when stations present and no station_id query", func(t *testing.T) {
+		if err := views.LoadTemplates(); err != nil {
+			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
+		}
+		ctrlWithStations := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		ctrlWithStations.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Template renders selected option as: <option value="st-1" selected>
+		if !strings.Contains(body, `value="st-1" selected`) {
+			t.Errorf("body should have first station (st-1) as selected; got %q", body)
+		}
+	})
+
+	t.Run("uses station_id from query when stations present", func(t *testing.T) {
+		if err := views.LoadTemplates(); err != nil {
+			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
+		}
+		ctrlWithStations := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/?station_id=st-2", nil)
+		rec := httptest.NewRecorder()
+
+		ctrlWithStations.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, `value="st-2"`) || !strings.Contains(body, "Station Two") {
+			t.Errorf("body should include second station option; got %q", body)
+		}
+		if !strings.Contains(body, `value="st-2" selected`) {
+			t.Errorf("body should mark second station (st-2) as selected; got %q", body)
 		}
 	})
 }

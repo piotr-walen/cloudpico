@@ -14,8 +14,7 @@
             hx-trigger="change"
             hx-target="#current-conditions-container"
             hx-swap="innerHTML"
-            hx-include="this"
-            hx-push-url="true">
+            hx-include="this">
       {{ range .Stations }}
       <option value="{{ .ID }}" {{ if eq $.SelectedStationID .ID }}selected{{ end }}>{{ .Name }}</option>
       {{ end }}
