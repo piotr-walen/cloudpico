@@ -11,6 +11,7 @@ import (
 	db "cloudpico-server/internal/db"
 	httpapi "cloudpico-server/internal/httpapi"
 	weather "cloudpico-server/internal/modules/weather"
+	weatherviews "cloudpico-server/internal/modules/weather/views"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -35,8 +36,11 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	slog.Info("database connection successful")
 
-	mux := httpapi.NewMux(dbConn, "static")
+	mux := httpapi.NewMux(dbConn, cfg.StaticDir)
 
+	if err := weatherviews.LoadTemplates(); err != nil {
+		return err
+	}
 	weather.RegisterFeature(mux, dbConn)
 
 	srv := httpapi.NewServer(cfg, mux)

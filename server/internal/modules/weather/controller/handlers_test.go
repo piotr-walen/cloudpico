@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cloudpico-server/internal/modules/weather/types"
+	"cloudpico-server/internal/modules/weather/views"
 )
 
 type mockRepo struct {
@@ -30,6 +31,74 @@ func (m *mockRepo) GetLatestReadings(stationID string, limit int) ([]types.Readi
 
 func (m *mockRepo) GetReadings(stationID string, from, to time.Time, limit int) ([]types.Reading, error) {
 	return m.readings, m.readingsErr
+}
+
+func Test_handleDashboard(t *testing.T) {
+	ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
+
+	t.Run("returns 404 when path is not /", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/dashboard", nil)
+		req.URL.Path = "/dashboard"
+		rec := httptest.NewRecorder()
+
+		ctrl.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusNotFound)
+		}
+	})
+
+	t.Run("returns 404 when path is not exactly /", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "http://example.com/", nil)
+		req.URL.Path = "//"
+		rec := httptest.NewRecorder()
+
+		ctrl.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d; want %d for path %q", rec.Code, http.StatusNotFound, req.URL.Path)
+		}
+	})
+
+	t.Run("returns 500 and error body when render fails", func(t *testing.T) {
+		// Render fails when templates are not loaded (dashboardTmpl is nil)
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "failed to render page") {
+			t.Errorf("body = %q; expected 'failed to render page'", body)
+		}
+		if !strings.Contains(body, "error") {
+			t.Errorf("body = %q; expected error JSON", body)
+		}
+	})
+
+	t.Run("sets Content-Type and returns 200 with HTML when path is / and templates loaded", func(t *testing.T) {
+		if err := views.LoadTemplates(); err != nil {
+			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
+		}
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleDashboard(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+			t.Errorf("Content-Type = %q; want text/html; charset=utf-8", ct)
+		}
+		body := rec.Body.String()
+		if body == "" || !strings.Contains(body, "<!") || !strings.Contains(body, "html") {
+			t.Errorf("body should be HTML; got %q", body)
+		}
+	})
 }
 
 func Test_handleStations(t *testing.T) {
