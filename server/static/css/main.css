@@ -1,6 +1,9 @@
 /* Cloudpico base styles */
 .main { padding: 1rem; max-width: 60rem; margin: 0 auto; }
 .dashboard-content { margin-top: 1rem; }
+.station-selector-wrapper { margin-bottom: 1rem; }
+.station-selector-wrapper label { display: block; font-weight: 500; margin-bottom: 0.25rem; }
+.station-selector { min-width: 12rem; padding: 0.35rem 0.5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; }
 .current-conditions.card {
   border: 1px solid #ddd;
   border-radius: 8px;

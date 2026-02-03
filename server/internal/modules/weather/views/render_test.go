@@ -83,9 +83,10 @@ func TestRenderDashboard_withData(t *testing.T) {
 		t.Fatalf("LoadTemplates(): %v", err)
 	}
 
-	data := struct {
-		Title string
-	}{Title: "Custom Title"}
+	data := DashboardData{
+		Stations:          []StationOption{{ID: "s1", Name: "Station One"}},
+		SelectedStationID: "s1",
+	}
 
 	var buf bytes.Buffer
 	err := RenderDashboard(&buf, data)
@@ -101,6 +102,12 @@ func TestRenderDashboard_withData(t *testing.T) {
 	}
 	if !strings.Contains(out, "Cloudpico") {
 		t.Errorf("output missing \"Cloudpico\"; got %q", out)
+	}
+	if !strings.Contains(out, "Station One") {
+		t.Errorf("output missing station name; got %q", out)
+	}
+	if !strings.Contains(out, "station-selector") {
+		t.Errorf("output missing station selector; got %q", out)
 	}
 	// Ensure we get HTML layout (base defines structure).
 	if !strings.Contains(out, "<!DOCTYPE html>") {
