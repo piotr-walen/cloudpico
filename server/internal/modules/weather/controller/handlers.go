@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"bytes"
 	"log/slog"
 	"net/http"
 
@@ -85,11 +86,14 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 	var stationName string
 	if stationID == "" {
 		if len(stations) == 0 {
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			if err := views.RenderCurrentConditionsPartial(w, views.CurrentConditionsData{StationName: "", Reading: nil}); err != nil {
+			var buf bytes.Buffer
+			if err := views.RenderCurrentConditionsPartial(&buf, views.CurrentConditionsData{StationName: "", Reading: nil}); err != nil {
 				slog.Error("current conditions partial render failed", "error", err)
 				utils.WriteError(w, http.StatusInternalServerError, "failed to render")
+				return
 			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(buf.Bytes())
 			return
 		}
 		stationID = stations[0].ID
@@ -120,10 +124,12 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 	}
 
 	data := views.CurrentConditionsData{StationName: stationName, Reading: reading}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.RenderCurrentConditionsPartial(w, data); err != nil {
+	var buf bytes.Buffer
+	if err := views.RenderCurrentConditionsPartial(&buf, data); err != nil {
 		slog.Error("current conditions partial render failed", "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to render")
 		return
 	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Write(buf.Bytes())
 }
