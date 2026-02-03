@@ -34,8 +34,8 @@ func TestSmoke_Healthz(t *testing.T) {
 		"LOG_LEVEL=info",
 		"HTTP_ADDR="+addr,
 
-		// DB envs (match your db package)
-		"DB_DRIVER=sqlite3",
+		// SQLite envs (match config)
+		"SQLITE_DRIVER=sqlite3",
 		"SQLITE_PATH="+sqlitePath,
 	)
 	cmd.Stdout = os.Stdout

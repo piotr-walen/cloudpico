@@ -20,11 +20,11 @@ func Run(ctx context.Context, cfg config.Config) error {
 		"logLevel", cfg.LogLevel.String(),
 		"httpAddr", cfg.HTTPAddr,
 		"staticDir", cfg.StaticDir,
-		"driver", cfg.Driver,
-		"path", cfg.Path,
-		"maxOpenConns", cfg.MaxOpenConns,
-		"maxIdleConns", cfg.MaxIdleConns,
-		"connMaxLifetime", cfg.ConnMaxLifetime,
+		"sqliteDriver", cfg.SQLiteDriver,
+		"sqlitePath", cfg.SQLitePath,
+		"sqliteMaxOpenConns", cfg.SQLiteMaxOpenConns,
+		"sqliteMaxIdleConns", cfg.SQLiteMaxIdleConns,
+		"sqliteConnMaxLifetime", cfg.SQLiteConnMaxLifetime,
 	)
 	dbConn, err := db.Open(cfg)
 	if err != nil {

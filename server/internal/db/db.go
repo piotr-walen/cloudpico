@@ -19,20 +19,20 @@ func Open(cfg config.Config) (*sql.DB, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open(cfg.Driver, dsn)
+	db, err := sql.Open(cfg.SQLiteDriver, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("db open: %w", err)
 	}
 
 	// Pooling (SQLite is typically best with low concurrency; tune if needed)
-	if cfg.MaxOpenConns > 0 {
-		db.SetMaxOpenConns(cfg.MaxOpenConns)
+	if cfg.SQLiteMaxOpenConns > 0 {
+		db.SetMaxOpenConns(cfg.SQLiteMaxOpenConns)
 	}
-	if cfg.MaxIdleConns >= 0 {
-		db.SetMaxIdleConns(cfg.MaxIdleConns)
+	if cfg.SQLiteMaxIdleConns >= 0 {
+		db.SetMaxIdleConns(cfg.SQLiteMaxIdleConns)
 	}
-	if cfg.ConnMaxLifetime > 0 {
-		db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	if cfg.SQLiteConnMaxLifetime > 0 {
+		db.SetConnMaxLifetime(cfg.SQLiteConnMaxLifetime)
 	}
 
 	// Validate connectivity early
@@ -52,12 +52,12 @@ func Close(db *sql.DB) error {
 }
 
 func buildDSN(cfg config.Config) (string, error) {
-	if cfg.DSN != "" {
-		return cfg.DSN, nil
+	if cfg.SQLiteDSN != "" {
+		return cfg.SQLiteDSN, nil
 	}
 
 	// Ensure directory exists for file-backed sqlite db
-	path := cfg.Path
+	path := cfg.SQLitePath
 	dir := filepath.Dir(path)
 	if dir != "." {
 		if err := os.MkdirAll(dir, 0o755); err != nil {
