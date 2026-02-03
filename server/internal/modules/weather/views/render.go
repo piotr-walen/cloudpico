@@ -30,6 +30,18 @@ func LoadTemplates() error {
 	return loadTemplatesFromFS(viewsFS, "templates")
 }
 
+// StationOption is the view model for a station in the dashboard selector.
+type StationOption struct {
+	ID   string
+	Name string
+}
+
+// DashboardData is the view model for the dashboard page.
+type DashboardData struct {
+	Stations          []StationOption
+	SelectedStationID string
+}
+
 // RenderDashboard executes the dashboard page (base layout + dashboard content) into w.
 func RenderDashboard(w io.Writer, data any) error {
 	if dashboardTmpl == nil {

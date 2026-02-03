@@ -4,11 +4,29 @@
 <section class="dashboard">
   <h1>Dashboard</h1>
   <p class="lead">Weather stations and readings.</p>
+  {{ with . }}
+  <div class="station-selector-wrapper">
+    <label for="station-selector">Station</label>
+    <select id="station-selector"
+            name="station_id"
+            class="station-selector"
+            hx-get="/partials/current-conditions"
+            hx-trigger="change"
+            hx-target="#current-conditions-container"
+            hx-swap="innerHTML"
+            hx-include="this">
+      {{ range .Stations }}
+      <option value="{{ .ID }}" {{ if eq $.SelectedStationID .ID }}selected{{ end }}>{{ .Name }}</option>
+      {{ end }}
+    </select>
+  </div>
+  {{ end }}
   <div id="current-conditions-container"
        class="dashboard-content"
        hx-get="/partials/current-conditions"
        hx-trigger="load, every 30s"
-       hx-swap="innerHTML">
+       hx-swap="innerHTML"
+       hx-include="#station-selector">
     <p>Loading…</p>
   </div>
 </section>

@@ -14,8 +14,23 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 		http.NotFound(w, r)
 		return
 	}
+	stations, err := c.repository.GetStations()
+	if err != nil {
+		slog.Error("dashboard: get stations failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
+		return
+	}
+	selectedID := r.URL.Query().Get("station_id")
+	if selectedID == "" && len(stations) > 0 {
+		selectedID = stations[0].ID
+	}
+	opts := make([]views.StationOption, 0, len(stations))
+	for _, s := range stations {
+		opts = append(opts, views.StationOption{ID: s.ID, Name: s.Name})
+	}
+	data := views.DashboardData{Stations: opts, SelectedStationID: selectedID}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.RenderDashboard(w, nil); err != nil {
+	if err := views.RenderDashboard(w, data); err != nil {
 		slog.Error("dashboard template render failed", "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to render page")
 		return
