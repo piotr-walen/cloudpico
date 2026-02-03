@@ -15,6 +15,17 @@ import (
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
+	slog.Info("config loaded",
+		"appEnv", cfg.AppEnv,
+		"logLevel", cfg.LogLevel.String(),
+		"httpAddr", cfg.HTTPAddr,
+		"staticDir", cfg.StaticDir,
+		"driver", cfg.Driver,
+		"path", cfg.Path,
+		"maxOpenConns", cfg.MaxOpenConns,
+		"maxIdleConns", cfg.MaxIdleConns,
+		"connMaxLifetime", cfg.ConnMaxLifetime,
+	)
 	dbConn, err := db.Open(cfg)
 	if err != nil {
 		return err

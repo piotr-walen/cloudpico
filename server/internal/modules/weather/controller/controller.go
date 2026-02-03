@@ -19,6 +19,7 @@ func NewWeatherController(repository repository.WeatherRepository) WeatherContro
 
 func (c *weatherControllerImpl) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /", c.handleDashboard)
+	mux.HandleFunc("GET /partials/current-conditions", c.handleCurrentConditionsPartial)
 	mux.HandleFunc("GET /api/v1/stations", c.handleStations)
 	mux.HandleFunc("GET /api/v1/stations/{id}/latest", c.handleLatest)
 	mux.HandleFunc("GET /api/v1/stations/{id}/readings", c.handleReadings)

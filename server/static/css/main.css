@@ -1,0 +1,13 @@
+/* Cloudpico base styles */
+.main { padding: 1rem; max-width: 60rem; margin: 0 auto; }
+.dashboard-content { margin-top: 1rem; }
+.current-conditions.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  max-width: 20rem;
+}
+.current-conditions .card-title { margin: 0 0 0.5rem; font-size: 1.1rem; }
+.current-conditions .reading-value { font-size: 1.5rem; font-weight: 600; margin: 0.25rem 0; }
+.current-conditions .reading-time, .current-conditions .station-name { margin: 0; color: #666; font-size: 0.9rem; }
+.current-conditions .no-data { margin: 0; color: #888; }
