@@ -35,7 +35,7 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	slog.Info("database connection successful")
 
-	mux := httpapi.NewMux(dbConn)
+	mux := httpapi.NewMux(dbConn, "static")
 
 	weather.RegisterFeature(mux, dbConn)
 

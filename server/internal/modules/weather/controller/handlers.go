@@ -3,8 +3,18 @@ package controller
 import (
 	"net/http"
 
+	"cloudpico-server/internal/modules/weather/views"
 	"cloudpico-server/internal/utils"
 )
+
+func handleDashboard(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_ = views.RenderDashboard(w, nil)
+}
 
 func (c *weatherControllerImpl) handleStations(w http.ResponseWriter, r *http.Request) {
 	stations, err := c.repository.GetStations()
