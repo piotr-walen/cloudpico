@@ -387,6 +387,45 @@ func Test_handleCurrentConditionsPartial(t *testing.T) {
 		}
 	})
 
+	t.Run("uses station name for station_id when query param provided", func(t *testing.T) {
+		stations := []types.Station{{ID: "first", Name: "First Station"}, {ID: "second", Name: "Second Station"}}
+		latest := []types.Reading{{StationID: "second", Time: time.Now(), Value: 22.0}}
+		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions?station_id=second", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleCurrentConditionsPartial(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "Second Station") {
+			t.Errorf("body should show station name for station_id=second; got %q", body)
+		}
+		if !strings.Contains(body, "22.0") {
+			t.Errorf("body should show reading value for selected station; got %q", body)
+		}
+	})
+
+	t.Run("uses Unknown Station when invalid station_id provided", func(t *testing.T) {
+		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
+		latest := []types.Reading{{StationID: "st-1", Time: time.Now(), Value: 19.0}}
+		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions?station_id=nonexistent", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleCurrentConditionsPartial(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "Unknown Station") {
+			t.Errorf("body should show Unknown Station for invalid station_id; got %q", body)
+		}
+	})
+
 	t.Run("returns 500 when GetStations fails", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
 		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)

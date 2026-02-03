@@ -5,7 +5,6 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
-	"log/slog"
 	"time"
 )
 
@@ -58,6 +57,5 @@ func RenderCurrentConditionsPartial(w io.Writer, data CurrentConditionsData) err
 		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
 	}
 
-	slog.Info("rendering current conditions partial", "data", data)
 	return dashboardTmpl.ExecuteTemplate(w, "partials/current-conditions.html", data)
 }

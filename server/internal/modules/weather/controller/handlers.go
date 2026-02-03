@@ -74,15 +74,16 @@ func (c *weatherControllerImpl) handleReadings(w http.ResponseWriter, r *http.Re
 }
 
 func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWriter, r *http.Request) {
+	stations, err := c.repository.GetStations()
+	if err != nil {
+		slog.Error("current conditions: get stations failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
+		return
+	}
+
 	stationID := r.URL.Query().Get("station_id")
 	var stationName string
 	if stationID == "" {
-		stations, err := c.repository.GetStations()
-		if err != nil {
-			slog.Error("current conditions: get stations failed", "error", err)
-			utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
-			return
-		}
 		if len(stations) == 0 {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			if err := views.RenderCurrentConditionsPartial(w, views.CurrentConditionsData{StationName: "", Reading: nil}); err != nil {
@@ -94,17 +95,15 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 		stationID = stations[0].ID
 		stationName = stations[0].Name
 	} else {
-		stations, err := c.repository.GetStations()
-		if err != nil {
-			slog.Error("current conditions: get stations failed", "error", err)
-			utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
-			return
-		}
 		for _, s := range stations {
 			if s.ID == stationID {
 				stationName = s.Name
 				break
 			}
+		}
+		if stationName == "" {
+			slog.Warn("current conditions: unknown station_id", "station_id", stationID)
+			stationName = "Unknown Station"
 		}
 	}
 
