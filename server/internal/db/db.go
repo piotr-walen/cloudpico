@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,16 +14,16 @@ import (
 )
 
 func Open(cfg config.Config) (*sql.DB, error) {
-
 	dsn, err := buildDSN(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	db, err := sql.Open(cfg.SQLiteDriver, dsn)
+	connector, err := NewLoggingConnector(dsn, slog.Default())
 	if err != nil {
 		return nil, fmt.Errorf("db open: %w", err)
 	}
+	db := sql.OpenDB(connector)
 
 	// Pooling (SQLite is typically best with low concurrency; tune if needed)
 	if cfg.SQLiteMaxOpenConns > 0 {
