@@ -16,26 +16,26 @@ Subscribes to telemetry topics, validates and parses payloads, stores readings i
 
 Components
 
-firmware/ — TinyGo firmware for Raspberry Pi Pico 2 (sensor reads + BLE advertising payload + sleep strategy)
+- firmware/ — TinyGo firmware for Raspberry Pi Pico 2 (sensor reads + BLE advertising payload + sleep strategy)
 
-gateway/ — BLE scanner/collector service (BLE → MQTT bridge, station health, deduplication)
+- gateway/ — BLE scanner/collector service (BLE → MQTT bridge, station health, deduplication)
 
-server/ — Go server (MQTT subscriber + HTTP API + SQLite persistence + HTML web client)
+- server/ — Go server (MQTT subscriber + HTTP API + SQLite persistence + HTML web client)
 
-deploy/ — Docker Compose, Mosquitto configs, deployment notes
+- deploy/ — Docker Compose, Mosquitto configs, deployment notes
 
-docs/ — BLE payload schema, station identity conventions, MQTT topic conventions, API notes
+- docs/ — BLE payload schema, station identity conventions, MQTT topic conventions, API notes
 
 Data Flow
 
-Pico 2 wakes on interval and samples sensors (temperature, humidity, pressure, etc.).
+- Pico 2 wakes on interval and samples sensors (temperature, humidity, pressure, etc.).
 
-Pico 2 packs readings into a compact payload including station_id + sequence number + battery + sensor values and broadcasts it in BLE advertisements for a short window.
+- Pico 2 packs readings into a compact payload including station_id + sequence number + battery + sensor values and broadcasts it in BLE advertisements for a short window.
 
-Pi 5 passively scans BLE advertisements, filters by service/manufacturer data, validates payloads, updates station “last seen” and health state, and republishes telemetry to Mosquitto on a station-specific topic.
+- Pi 5 passively scans BLE advertisements, filters by service/manufacturer data, validates payloads, updates station “last seen” and health state, and republishes telemetry to Mosquitto on a station-specific topic.
 
-Go server subscribes to telemetry topics and ingests messages.
+- Go server subscribes to telemetry topics and ingests messages.
 
-Readings are stored in SQLite for historical queries.
+- Readings are stored in SQLite for historical queries.
 
-Users open the web client (served directly by the Go server) which calls the API to render latest values and history.
+- Users open the web client (served directly by the Go server) which calls the API to render latest values and history.
