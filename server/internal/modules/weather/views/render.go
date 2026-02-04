@@ -58,8 +58,32 @@ type CurrentConditionsData struct {
 
 // ReadingPartial exposes reading fields for the template (avoids importing types in views).
 type ReadingPartial struct {
-	Value float64
-	Time  time.Time
+	Value       float64
+	Time        time.Time
+	HumidityPct float64
+	PressureHpa float64
+}
+
+// PaginationItem is one entry in the pagination bar: either a page number or an ellipsis.
+type PaginationItem struct {
+	Page     int  // page number (1-based); only valid when Ellipsis is false
+	Ellipsis bool // when true, render "..." instead of a link
+}
+
+// HistoryData is the view model for the history partial.
+type HistoryData struct {
+	StationName string
+	StationID   string // for pagination links
+	RangeLabel  string
+	RangeKey    string // for pagination links, e.g. "24h"
+	Readings    []ReadingPartial
+	CurrentPage int
+	TotalPages  int
+	HasPrev     bool
+	HasNext     bool
+	PrevPage    int
+	NextPage    int
+	PageItems   []PaginationItem // page numbers and ellipsis for the pagination bar
 }
 
 // RenderCurrentConditionsPartial executes only the current-conditions partial into w.
@@ -70,4 +94,14 @@ func RenderCurrentConditionsPartial(w io.Writer, data CurrentConditionsData) err
 	}
 
 	return dashboardTmpl.ExecuteTemplate(w, "partials/current-conditions.html", data)
+}
+
+// RenderHistoryPartial executes only the history partial into w.
+// Use for HTMX fragment refresh.
+func RenderHistoryPartial(w io.Writer, data HistoryData) error {
+	if dashboardTmpl == nil {
+		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
+	}
+
+	return dashboardTmpl.ExecuteTemplate(w, "partials/history.html", data)
 }

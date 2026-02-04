@@ -19,10 +19,14 @@ var getLatestReadingSQL string
 //go:embed sql/get-readings.sql
 var getReadingsSQL string
 
+//go:embed sql/get-readings-count.sql
+var getReadingsCountSQL string
+
 type WeatherRepository interface {
 	GetStations() ([]types.Station, error)
 	GetLatestReadings(stationID string, limit int) ([]types.Reading, error)
-	GetReadings(stationID string, from time.Time, to time.Time, limit int) ([]types.Reading, error)
+	GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error)
+	GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error)
 }
 
 type repositoryImpl struct {
@@ -67,10 +71,10 @@ func (r *repositoryImpl) GetLatestReadings(stationID string, limit int) ([]types
 	return scanReadings(rows)
 }
 
-func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.Time, limit int) ([]types.Reading, error) {
+func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error) {
 	fromStr := from.UTC().Format(time.RFC3339Nano)
 	toStr := to.UTC().Format(time.RFC3339Nano)
-	rows, err := r.db.Query(getReadingsSQL, stationID, fromStr, toStr, limit)
+	rows, err := r.db.Query(getReadingsSQL, stationID, fromStr, toStr, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -82,12 +86,20 @@ func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.T
 	return scanReadings(rows)
 }
 
+func (r *repositoryImpl) GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error) {
+	fromStr := from.UTC().Format(time.RFC3339Nano)
+	toStr := to.UTC().Format(time.RFC3339Nano)
+	var n int
+	err := r.db.QueryRow(getReadingsCountSQL, stationID, fromStr, toStr).Scan(&n)
+	return n, err
+}
+
 func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 	var out []types.Reading
 	for rows.Next() {
 		var rec types.Reading
 		var ts string
-		if err := rows.Scan(&rec.StationID, &ts, &rec.Value); err != nil {
+		if err := rows.Scan(&rec.StationID, &ts, &rec.Value, &rec.HumidityPct, &rec.PressureHpa); err != nil {
 			return nil, err
 		}
 		t, err := time.Parse(time.RFC3339Nano, ts)

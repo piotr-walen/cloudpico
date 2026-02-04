@@ -238,7 +238,7 @@ func TestGetReadings_EmptyRange(t *testing.T) {
 
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10)
+	readings, err := repo.GetReadings("1", from, to, 10, 0)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestGetReadings_WithData(t *testing.T) {
 
 	from := time.Date(2025, 2, 1, 11, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 1, 13, 59, 59, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10)
+	readings, err := repo.GetReadings("1", from, to, 10, 0)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
@@ -310,7 +310,7 @@ func TestGetReadings_RespectsLimit(t *testing.T) {
 
 	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 2)
+	readings, err := repo.GetReadings("1", from, to, 2, 0)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
@@ -320,6 +320,44 @@ func TestGetReadings_RespectsLimit(t *testing.T) {
 	// Newest first: 12, 11
 	if readings[0].Value != 12.0 || readings[1].Value != 11.0 {
 		t.Errorf("GetReadings limit: got values %v", []float64{readings[0].Value, readings[1].Value})
+	}
+}
+
+func TestGetReadings_RespectsOffset(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	_, err = db.Exec(`
+		INSERT INTO readings (station_id, ts, temperature_c) VALUES
+		(1, '2025-02-01T10:00:00Z', 10.0),
+		(1, '2025-02-01T11:00:00Z', 11.0),
+		(1, '2025-02-01T12:00:00Z', 12.0),
+		(1, '2025-02-01T13:00:00Z', 13.0)
+	`)
+	if err != nil {
+		t.Fatalf("insert readings: %v", err)
+	}
+	repo := NewRepository(db)
+
+	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
+	readings, err := repo.GetReadings("1", from, to, 2, 2)
+	if err != nil {
+		t.Fatalf("GetReadings: %v", err)
+	}
+	if len(readings) != 2 {
+		t.Fatalf("GetReadings(limit=2, offset=2): got %d readings, want 2", len(readings))
+	}
+	// Order DESC: 13, 12, 11, 10. Offset 2 gives 11, 10
+	if readings[0].Value != 11.0 || readings[1].Value != 10.0 {
+		t.Errorf("GetReadings offset: got values %v, want [11, 10]", []float64{readings[0].Value, readings[1].Value})
 	}
 }
 
@@ -342,7 +380,7 @@ func TestGetReadings_NullTemperature(t *testing.T) {
 
 	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10)
+	readings, err := repo.GetReadings("1", from, to, 10, 0)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
@@ -352,6 +390,46 @@ func TestGetReadings_NullTemperature(t *testing.T) {
 	// COALESCE(temperature_c, 0) in SQL
 	if readings[0].Value != 0 {
 		t.Errorf("null temperature_c: got value %v, want 0", readings[0].Value)
+	}
+}
+
+func TestGetReadingsCount(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	_, err = db.Exec(`
+		INSERT INTO readings (station_id, ts, temperature_c) VALUES
+		(1, '2025-02-01T10:00:00Z', 10.0),
+		(1, '2025-02-01T11:00:00Z', 11.0),
+		(1, '2025-02-01T12:00:00Z', 12.0)
+	`)
+	if err != nil {
+		t.Fatalf("insert readings: %v", err)
+	}
+	repo := NewRepository(db)
+
+	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
+	n, err := repo.GetReadingsCount("1", from, to)
+	if err != nil {
+		t.Fatalf("GetReadingsCount: %v", err)
+	}
+	if n != 3 {
+		t.Errorf("GetReadingsCount: got %d, want 3", n)
+	}
+	n, err = repo.GetReadingsCount("1", time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC), time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatalf("GetReadingsCount (empty range): %v", err)
+	}
+	if n != 0 {
+		t.Errorf("GetReadingsCount empty range: got %d, want 0", n)
 	}
 }
 
@@ -369,5 +447,6 @@ func TestRepository_ImplementsInterface(t *testing.T) {
 	// Compile-time check; also call all methods for coverage.
 	_, _ = repo.GetStations()
 	_, _ = repo.GetLatestReadings("1", 100)
-	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10)
+	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10, 0)
+	_, _ = repo.GetReadingsCount("1", time.Now().Add(-24*time.Hour), time.Now())
 }

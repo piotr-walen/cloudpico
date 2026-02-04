@@ -13,4 +13,26 @@
 .current-conditions .card-title { margin: 0 0 0.5rem; font-size: 1.1rem; }
 .current-conditions .reading-value { font-size: 1.5rem; font-weight: 600; margin: 0.25rem 0; }
 .current-conditions .reading-time, .current-conditions .station-name { margin: 0; color: #666; font-size: 0.9rem; }
+.current-conditions .reading-extra { margin: 0.25rem 0; color: #555; font-size: 0.9rem; display: flex; gap: 1rem; flex-wrap: wrap; }
 .current-conditions .no-data { margin: 0; color: #888; }
+.history-section { margin-top: 1.5rem; }
+.history-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.history-controls label { display: block; font-weight: 500; margin-bottom: 0.25rem; }
+.history-range { min-width: 6rem; padding: 0.35rem 0.5rem; font-size: 1rem; border: 1px solid #ccc; border-radius: 4px; }
+.history-container { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
+.history-range-label { margin: 0 0 0.75rem; color: #666; font-size: 0.9rem; }
+.history-station { margin: 0 0 0.5rem; color: #666; font-size: 0.9rem; }
+.history-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.history-item { display: flex; justify-content: space-between; align-items: center; }
+.history-time { color: #666; font-size: 0.9rem; }
+.history-values { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+.history-value { font-weight: 600; }
+.history-humidity, .history-pressure { color: #555; font-size: 0.9rem; }
+.history-container .no-data { margin: 0; color: #888; }
+.history-pagination { display: flex; align-items: center; gap: 0.5rem 1rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #eee; flex-wrap: wrap; }
+.history-pagination-pages { display: flex; align-items: center; gap: 0.25rem; }
+.history-pagination-current { color: #333; font-size: 0.9rem; font-weight: 600; padding: 0.2rem 0.5rem; }
+.history-pagination-link { color: #0066cc; text-decoration: none; font-size: 0.9rem; padding: 0.2rem 0.5rem; border-radius: 3px; }
+.history-pagination-link:hover { text-decoration: underline; }
+.history-pagination-num { min-width: 1.5rem; text-align: center; }
+.history-pagination-ellipsis { color: #666; font-size: 0.9rem; padding: 0 0.15rem; user-select: none; }

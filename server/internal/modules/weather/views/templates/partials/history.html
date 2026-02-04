@@ -1,0 +1,67 @@
+{{ define "partials/history.html" }}
+{{ if .StationName }}
+<p class="history-station">{{ .StationName }}</p>
+{{ end }}
+<p class="history-range-label">{{ .RangeLabel }}</p>
+{{ if .Readings }}
+<ul class="history-list">
+  {{ range .Readings }}
+  <li class="history-item">
+    <span class="history-time" title="{{ .Time.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Time.Format "2006-01-02 3:04:05 PM" }}</span>
+    <span class="history-values">
+      <span class="history-value">{{ printf "%.1f" .Value }}°C</span>
+      <span class="history-humidity">{{ printf "%.0f" .HumidityPct }}%</span>
+      <span class="history-pressure">{{ printf "%.0f" .PressureHpa }} hPa</span>
+    </span>
+  </li>
+  {{ end }}
+</ul>
+{{ if or .HasPrev .HasNext .PageItems }}
+<nav class="history-pagination" aria-label="History pagination">
+  {{ if .HasPrev }}
+  <a class="history-pagination-link history-pagination-first" href="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page=1"
+     hx-get="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page=1"
+     hx-target="#history-container"
+     hx-swap="innerHTML"
+     hx-push-url="false">First</a>
+  <a class="history-pagination-link" href="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page={{ .PrevPage }}"
+     hx-get="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page={{ .PrevPage }}"
+     hx-target="#history-container"
+     hx-swap="innerHTML"
+     hx-push-url="false">← Previous</a>
+  {{ end }}
+  <span class="history-pagination-pages">
+    {{ range .PageItems }}
+    {{ if .Ellipsis }}
+    <span class="history-pagination-ellipsis" aria-hidden="true">…</span>
+    {{ else }}
+    {{ if eq .Page $.CurrentPage }}
+    <span class="history-pagination-current" aria-current="page">{{ .Page }}</span>
+    {{ else }}
+    <a class="history-pagination-link history-pagination-num" href="/partials/history?station_id={{ $.StationID }}&range={{ $.RangeKey }}&page={{ .Page }}"
+       hx-get="/partials/history?station_id={{ $.StationID }}&range={{ $.RangeKey }}&page={{ .Page }}"
+       hx-target="#history-container"
+       hx-swap="innerHTML"
+       hx-push-url="false">{{ .Page }}</a>
+    {{ end }}
+    {{ end }}
+    {{ end }}
+  </span>
+  {{ if .HasNext }}
+  <a class="history-pagination-link" href="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page={{ .NextPage }}"
+     hx-get="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page={{ .NextPage }}"
+     hx-target="#history-container"
+     hx-swap="innerHTML"
+     hx-push-url="false">Next →</a>
+  <a class="history-pagination-link history-pagination-last" href="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page={{ .TotalPages }}"
+     hx-get="/partials/history?station_id={{ .StationID }}&range={{ .RangeKey }}&page={{ .TotalPages }}"
+     hx-target="#history-container"
+     hx-swap="innerHTML"
+     hx-push-url="false">Last</a>
+  {{ end }}
+</nav>
+{{ end }}
+{{ else }}
+<p class="no-data">No readings in selected range</p>
+{{ end }}
+{{ end }}
