@@ -18,6 +18,7 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o cloudpico-server 
 # Runtime stage
 FROM alpine:latest
 
+WORKDIR /app
 
 RUN apk --no-cache add ca-certificates  wget
 
