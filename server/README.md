@@ -37,3 +37,17 @@ Run e2e test
 ```
 go test -v ./... -tags=e2e
 ```
+
+Docker Container commands (dev)
+
+```
+docker build -t cloudpico-server .
+```
+
+```
+docker run --rm -p 8080:8080 \
+  -v /<project-path>/dev/sqlite:/app/data \
+  -e SQLITE_PATH=/app/data/app.db \
+  -e STATIC_DIR=/app/static \
+  cloudpico-server
+```
