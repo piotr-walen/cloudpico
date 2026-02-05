@@ -527,6 +527,161 @@ func Test_handleCurrentConditionsPartial(t *testing.T) {
 	})
 }
 
+// paginationItemsEqual compares two PaginationItem slices for equality.
+func paginationItemsEqual(a, b []views.PaginationItem) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i].Ellipsis != b[i].Ellipsis || a[i].Page != b[i].Page {
+			return false
+		}
+	}
+	return true
+}
+
+func Test_buildHistoryPageItems(t *testing.T) {
+	t.Run("returns nil when totalPages <= 0", func(t *testing.T) {
+		got := buildHistoryPageItems(0, 1)
+		if got != nil {
+			t.Errorf("buildHistoryPageItems(0, 1) = %v; want nil", got)
+		}
+		got = buildHistoryPageItems(-1, 1)
+		if got != nil {
+			t.Errorf("buildHistoryPageItems(-1, 1) = %v; want nil", got)
+		}
+	})
+
+	t.Run("single page returns one item", func(t *testing.T) {
+		want := []views.PaginationItem{{Page: 1, Ellipsis: false}}
+		got := buildHistoryPageItems(1, 1)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(1, 1) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("two pages with currentPage 1 returns both pages no ellipsis", func(t *testing.T) {
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Page: 2, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(2, 1)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(2, 1) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("currentPage at first page with many pages", func(t *testing.T) {
+		// totalPages=5, current=1 → window 1±2 gives 1,2,3; plus last 5 → [1,2,3,...,5]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Page: 2, Ellipsis: false},
+			{Page: 3, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 5, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(5, 1)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(5, 1) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("currentPage at last page with many pages", func(t *testing.T) {
+		// totalPages=5, current=5 → window 3,4,5; plus first 1 → [1,...,3,4,5]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 3, Ellipsis: false},
+			{Page: 4, Ellipsis: false},
+			{Page: 5, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(5, 5)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(5, 5) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("currentPage in middle with window and ellipsis both sides", func(t *testing.T) {
+		// totalPages=10, current=5 → 1,10 and 3..7 → [1,...,3,4,5,6,7,...,10]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 3, Ellipsis: false},
+			{Page: 4, Ellipsis: false},
+			{Page: 5, Ellipsis: false},
+			{Page: 6, Ellipsis: false},
+			{Page: 7, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 10, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(10, 5)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(10, 5) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("currentPage 2 with many pages", func(t *testing.T) {
+		// totalPages=10, current=2 → 1,10 and 0,1,2,3,4 clamped → 1,2,3,4,10 → [1,2,3,4,...,10]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Page: 2, Ellipsis: false},
+			{Page: 3, Ellipsis: false},
+			{Page: 4, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 10, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(10, 2)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(10, 2) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("currentPage second to last with many pages", func(t *testing.T) {
+		// totalPages=10, current=9 → 1,10 and 7,8,9,10 → [1,...,7,8,9,10]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 7, Ellipsis: false},
+			{Page: 8, Ellipsis: false},
+			{Page: 9, Ellipsis: false},
+			{Page: 10, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(10, 9)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(10, 9) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("all pages fit in window no ellipsis", func(t *testing.T) {
+		// totalPages=5, current=3 → 1,2,3,4,5 all in window → [1,2,3,4,5]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Page: 2, Ellipsis: false},
+			{Page: 3, Ellipsis: false},
+			{Page: 4, Ellipsis: false},
+			{Page: 5, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(5, 3)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(5, 3) = %v; want %v", got, want)
+		}
+	})
+
+	t.Run("currentPage out of range still produces valid items", func(t *testing.T) {
+		// Function does not validate currentPage; currentPage=100 with totalPages=5
+		// window 98..102 adds no pages in [1,5], so only first and last → [1,...,5]
+		want := []views.PaginationItem{
+			{Page: 1, Ellipsis: false},
+			{Ellipsis: true},
+			{Page: 5, Ellipsis: false},
+		}
+		got := buildHistoryPageItems(5, 100)
+		if !paginationItemsEqual(got, want) {
+			t.Errorf("buildHistoryPageItems(5, 100) = %v; want %v", got, want)
+		}
+	})
+}
+
 func Test_handleHistoryPartial(t *testing.T) {
 	if err := views.LoadTemplates(); err != nil {
 		t.Skipf("LoadTemplates failed: %v", err)
