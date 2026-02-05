@@ -1,9 +1,6 @@
 # Build stage
 FROM golang:1.25-alpine AS builder
 
-# CGO needs a C compiler and SQLite dev headers to build github.com/mattn/go-sqlite3
-RUN apk --no-cache add gcc musl-dev sqlite-dev
-
 WORKDIR /build
 
 # Copy go mod files
@@ -21,6 +18,10 @@ RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -o cloudpico-server 
 # Runtime stage
 FROM alpine:latest
 
+
+RUN apk --no-cache add ca-certificates  wget
+
+WORKDIR /app
 
 # Copy the binary from builder
 COPY --from=builder /build/cloudpico-server .
