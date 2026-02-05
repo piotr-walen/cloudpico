@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log/slog"
 	"net/http"
+	"sort"
 	"time"
 
 	"cloudpico-server/internal/modules/weather/views"
@@ -21,15 +22,28 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
 		return
 	}
+	state := readWeatherStateCookie(r)
 	selectedID := r.URL.Query().Get("station_id")
+	if selectedID == "" {
+		selectedID = state.StationID
+	}
 	if selectedID == "" && len(stations) > 0 {
 		selectedID = stations[0].ID
+	}
+	selectedRangeKey := state.RangeKey
+	if selectedRangeKey == "" {
+		selectedRangeKey = defaultHistoryRangeKey
 	}
 	opts := make([]views.StationOption, 0, len(stations))
 	for _, s := range stations {
 		opts = append(opts, views.StationOption{ID: s.ID, Name: s.Name})
 	}
-	data := views.DashboardData{Stations: opts, SelectedStationID: selectedID}
+	data := views.DashboardData{
+		Stations:          opts,
+		SelectedStationID: selectedID,
+		SelectedRangeKey:  selectedRangeKey,
+	}
+	writeWeatherStateCookie(w, selectedID, selectedRangeKey, state.Page)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.RenderDashboard(w, data); err != nil {
 		slog.Error("dashboard template render failed", "error", err)
@@ -98,7 +112,11 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 		return
 	}
 
+	state := readWeatherStateCookie(r)
 	stationID := r.URL.Query().Get("station_id")
+	if stationID == "" {
+		stationID = state.StationID
+	}
 	var stationName string
 	if stationID == "" {
 		if len(stations) == 0 {
@@ -153,6 +171,7 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 		utils.WriteError(w, http.StatusInternalServerError, "failed to render")
 		return
 	}
+	writeWeatherStateCookie(w, stationID, state.RangeKey, state.Page)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := w.Write(buf.Bytes()); err != nil {
 		slog.Error("current conditions: write response failed", "error", err)
@@ -160,23 +179,27 @@ func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWr
 }
 
 // buildHistoryPageItems returns page numbers and ellipsis for the pagination bar.
+// It only considers {1, totalPages, current±window}, so work is O(1) in totalPages.
 func buildHistoryPageItems(totalPages, currentPage int) []views.PaginationItem {
 	if totalPages <= 0 {
 		return nil
 	}
 	const window = 2
-	show := map[int]bool{1: true, totalPages: true}
+	// Collect only pages to show: first, last, and current ± window (clamped).
+	seen := map[int]bool{1: true, totalPages: true}
 	for p := currentPage - window; p <= currentPage+window; p++ {
 		if p >= 1 && p <= totalPages {
-			show[p] = true
+			seen[p] = true
 		}
 	}
+	sorted := make([]int, 0, len(seen))
+	for p := range seen {
+		sorted = append(sorted, p)
+	}
+	sort.Ints(sorted)
 	var items []views.PaginationItem
 	prev := 0
-	for p := 1; p <= totalPages; p++ {
-		if !show[p] {
-			continue
-		}
+	for _, p := range sorted {
 		if prev != 0 && p > prev+1 {
 			items = append(items, views.PaginationItem{Ellipsis: true})
 		}
@@ -194,7 +217,11 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		return
 	}
 
+	state := readWeatherStateCookie(r)
 	rangeKey := r.URL.Query().Get("range")
+	if rangeKey == "" {
+		rangeKey = state.RangeKey
+	}
 	rangeInfo, ok := resolveHistoryRange(rangeKey)
 	if !ok && rangeKey != "" {
 		slog.Warn("history: invalid range", "range", rangeKey)
@@ -202,12 +229,18 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 	resolvedRangeKey := rangeKey
 	if resolvedRangeKey == "" || !ok {
 		resolvedRangeKey = defaultHistoryRangeKey
+		rangeInfo, _ = resolveHistoryRange(resolvedRangeKey)
 	}
 
 	page := parseHistoryPage(r)
-	offset := (page - 1) * historyPageSize
+	if page == 1 && r.URL.Query().Get("page") == "" {
+		page = state.Page
+	}
 
 	stationID := r.URL.Query().Get("station_id")
+	if stationID == "" {
+		stationID = state.StationID
+	}
 	var stationName string
 	if stationID == "" {
 		if len(stations) == 0 {
@@ -265,6 +298,13 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 	if totalPages < 1 {
 		totalPages = 1
 	}
+	if page < 1 {
+		page = 1
+	}
+	if page > totalPages {
+		page = totalPages
+	}
+	offset := (page - 1) * historyPageSize
 
 	limit := historyPageSize + 1
 	readings, err := c.repository.GetReadings(stationID, from, now, limit, offset)
@@ -302,6 +342,7 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		NextPage:    page + 1,
 		PageItems:   buildHistoryPageItems(totalPages, page),
 	}
+	writeWeatherStateCookie(w, stationID, resolvedRangeKey, page)
 	var buf bytes.Buffer
 	if err := views.RenderHistoryPartial(&buf, data); err != nil {
 		slog.Error("history partial render failed", "error", err)

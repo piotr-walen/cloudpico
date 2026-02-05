@@ -40,6 +40,7 @@ type StationOption struct {
 type DashboardData struct {
 	Stations          []StationOption
 	SelectedStationID string
+	SelectedRangeKey  string // e.g. "24h", for history range dropdown
 }
 
 // RenderDashboard executes the dashboard page (base layout + dashboard content) into w.
