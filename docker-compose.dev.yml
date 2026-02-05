@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: cloudpico-mosquitto-dev
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./deploy/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - mosquitto_data_dev:/mosquitto/data
+      - mosquitto_log_dev:/mosquitto/log
+    networks:
+      - cloudpico-dev-network
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-h", "localhost", "-t", "$$SYS/health", "-C", "1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mosquitto_data_dev:
+    driver: local
+  mosquitto_log_dev:
+    driver: local
+
+networks:
+  cloudpico-dev-network:
+    driver: bridge
