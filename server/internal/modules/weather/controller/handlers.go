@@ -232,15 +232,21 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		rangeInfo, _ = resolveHistoryRange(resolvedRangeKey)
 	}
 
-	page := parseHistoryPage(r)
-	if page == 1 && r.URL.Query().Get("page") == "" {
-		page = state.Page
+	requestStation := r.URL.Query().Get("station_id")
+	if requestStation == "" {
+		requestStation = state.StationID
 	}
 
-	stationID := r.URL.Query().Get("station_id")
-	if stationID == "" {
-		stationID = state.StationID
+	page := parseHistoryPage(r)
+	if r.URL.Query().Get("page") == "" {
+		if requestStation != state.StationID || resolvedRangeKey != state.RangeKey {
+			page = 1
+		} else if state.Page >= 1 {
+			page = state.Page
+		}
 	}
+
+	stationID := requestStation
 	var stationName string
 	if stationID == "" {
 		if len(stations) == 0 {
@@ -294,30 +300,22 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		utils.WriteError(w, http.StatusInternalServerError, "failed to load readings")
 		return
 	}
-	totalPages := (count + historyPageSize - 1) / historyPageSize
-	if totalPages < 1 {
-		totalPages = 1
+	totalPages := 1
+	if count > 0 {
+		totalPages = (count + historyPageSize - 1) / historyPageSize
 	}
-	if page < 1 {
+	if page < 1 || page > totalPages {
 		page = 1
-	}
-	if page > totalPages {
-		page = totalPages
 	}
 	offset := (page - 1) * historyPageSize
 
-	limit := historyPageSize + 1
-	readings, err := c.repository.GetReadings(stationID, from, now, limit, offset)
+	readings, err := c.repository.GetReadings(stationID, from, now, historyPageSize, offset)
 	if err != nil {
 		slog.Error("history: get readings failed", "station_id", stationID, "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to load readings")
 		return
 	}
 
-	hasNext := len(readings) > historyPageSize
-	if hasNext {
-		readings = readings[:historyPageSize]
-	}
 	partials := make([]views.ReadingPartial, 0, len(readings))
 	for _, reading := range readings {
 		partials = append(partials, views.ReadingPartial{
