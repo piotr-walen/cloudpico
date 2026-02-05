@@ -8,7 +8,9 @@ type Station struct {
 }
 
 type Reading struct {
-	StationID string    `json:"stationId"`
-	Time      time.Time `json:"time"`
-	Value     float64   `json:"value"`
+	StationID   string    `json:"stationId"`
+	Time        time.Time `json:"time"`
+	Value       float64   `json:"value"`       // temperature °C
+	HumidityPct float64   `json:"humidityPct"` // 0–100 or 0 if unset
+	PressureHpa float64   `json:"pressureHpa"` // hPa or 0 if unset
 }

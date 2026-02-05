@@ -3,6 +3,8 @@ package controller
 import (
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -284,6 +286,280 @@ func Test_zeroAsNullTime(t *testing.T) {
 		}
 		if tVal, ok := got.(time.Time); !ok || !tVal.Equal(ts) {
 			t.Errorf("zeroAsNullTime(non-zero) = %v (%T); want %v", got, got, ts)
+		}
+	})
+}
+
+func Test_resolveHistoryRange(t *testing.T) {
+	defaultRange := historyRanges[defaultHistoryRangeKey]
+
+	t.Run("empty key returns default and true", func(t *testing.T) {
+		got, ok := resolveHistoryRange("")
+		if !ok {
+			t.Error("resolveHistoryRange(\"\") ok = false; want true")
+		}
+		if got.Duration != defaultRange.Duration || got.Label != defaultRange.Label {
+			t.Errorf("resolveHistoryRange(\"\") = %+v; want %+v", got, defaultRange)
+		}
+	})
+
+	t.Run("valid key 1h returns that range and true", func(t *testing.T) {
+		got, ok := resolveHistoryRange("1h")
+		if !ok {
+			t.Error("resolveHistoryRange(\"1h\") ok = false; want true")
+		}
+		want := historyRanges["1h"]
+		if got.Duration != want.Duration || got.Label != want.Label {
+			t.Errorf("resolveHistoryRange(\"1h\") = %+v; want %+v", got, want)
+		}
+	})
+
+	t.Run("valid key 24h returns that range and true", func(t *testing.T) {
+		got, ok := resolveHistoryRange("24h")
+		if !ok {
+			t.Error("resolveHistoryRange(\"24h\") ok = false; want true")
+		}
+		want := historyRanges["24h"]
+		if got.Duration != want.Duration || got.Label != want.Label {
+			t.Errorf("resolveHistoryRange(\"24h\") = %+v; want %+v", got, want)
+		}
+	})
+
+	t.Run("valid key 7d returns that range and true", func(t *testing.T) {
+		got, ok := resolveHistoryRange("7d")
+		if !ok {
+			t.Error("resolveHistoryRange(\"7d\") ok = false; want true")
+		}
+		want := historyRanges["7d"]
+		if got.Duration != want.Duration || got.Label != want.Label {
+			t.Errorf("resolveHistoryRange(\"7d\") = %+v; want %+v", got, want)
+		}
+	})
+
+	t.Run("invalid key returns default and false", func(t *testing.T) {
+		got, ok := resolveHistoryRange("invalid")
+		if ok {
+			t.Error("resolveHistoryRange(\"invalid\") ok = true; want false")
+		}
+		if got.Duration != defaultRange.Duration || got.Label != defaultRange.Label {
+			t.Errorf("resolveHistoryRange(\"invalid\") = %+v; want default %+v", got, defaultRange)
+		}
+	})
+
+	t.Run("unknown key returns default and false", func(t *testing.T) {
+		got, ok := resolveHistoryRange("30d")
+		if ok {
+			t.Error("resolveHistoryRange(\"30d\") ok = true; want false")
+		}
+		if got.Duration != defaultRange.Duration {
+			t.Errorf("resolveHistoryRange(\"30d\") duration = %v; want default %v", got.Duration, defaultRange.Duration)
+		}
+	})
+}
+
+func Test_parseHistoryPage(t *testing.T) {
+	t.Run("no page param returns 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		got := parseHistoryPage(req)
+		if got != 1 {
+			t.Errorf("parseHistoryPage() = %d; want 1", got)
+		}
+	})
+
+	t.Run("valid page returns that page", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/history?page=5", nil)
+		got := parseHistoryPage(req)
+		if got != 5 {
+			t.Errorf("parseHistoryPage() = %d; want 5", got)
+		}
+	})
+
+	t.Run("page=1 returns 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/history?page=1", nil)
+		got := parseHistoryPage(req)
+		if got != 1 {
+			t.Errorf("parseHistoryPage() = %d; want 1", got)
+		}
+	})
+
+	t.Run("invalid page (non-integer) returns 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/history?page=abc", nil)
+		got := parseHistoryPage(req)
+		if got != 1 {
+			t.Errorf("parseHistoryPage() = %d; want 1", got)
+		}
+	})
+
+	t.Run("page zero returns 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/history?page=0", nil)
+		got := parseHistoryPage(req)
+		if got != 1 {
+			t.Errorf("parseHistoryPage() = %d; want 1", got)
+		}
+	})
+
+	t.Run("negative page returns 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/history?page=-3", nil)
+		got := parseHistoryPage(req)
+		if got != 1 {
+			t.Errorf("parseHistoryPage() = %d; want 1", got)
+		}
+	})
+}
+
+func Test_readWeatherStateCookie(t *testing.T) {
+	t.Run("no cookie returns zero state", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		got := readWeatherStateCookie(req)
+		if got.StationID != "" || got.RangeKey != "" || got.Page != 0 {
+			t.Errorf("readWeatherStateCookie() = %+v; want zero weatherState", got)
+		}
+	})
+
+	t.Run("malformed cookie value returns zero state", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "not-valid-query%%"})
+		got := readWeatherStateCookie(req)
+		if got.StationID != "" || got.RangeKey != "" || got.Page != 0 {
+			t.Errorf("readWeatherStateCookie(malformed) = %+v; want zero weatherState", got)
+		}
+	})
+
+	t.Run("valid cookie parses all fields", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "station_id=st1&range=7d&page=3"})
+		got := readWeatherStateCookie(req)
+		if got.StationID != "st1" || got.RangeKey != "7d" || got.Page != 3 {
+			t.Errorf("readWeatherStateCookie() = %+v; want StationID=st1 RangeKey=7d Page=3", got)
+		}
+	})
+
+	t.Run("invalid range key in cookie yields empty RangeKey", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "station_id=st1&range=badkey&page=2"})
+		got := readWeatherStateCookie(req)
+		if got.RangeKey != "" {
+			t.Errorf("readWeatherStateCookie(invalid range) RangeKey = %q; want \"\"", got.RangeKey)
+		}
+		if got.StationID != "st1" || got.Page != 2 {
+			t.Errorf("readWeatherStateCookie() = %+v; want StationID=st1 Page=2 RangeKey empty", got)
+		}
+	})
+
+	t.Run("negative page in cookie yields page 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "station_id=x&range=24h&page=-1"})
+		got := readWeatherStateCookie(req)
+		if got.Page != 1 {
+			t.Errorf("readWeatherStateCookie(negative page) Page = %d; want 1", got.Page)
+		}
+	})
+
+	t.Run("zero page in cookie yields page 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "station_id=x&range=24h&page=0"})
+		got := readWeatherStateCookie(req)
+		if got.Page != 1 {
+			t.Errorf("readWeatherStateCookie(page=0) Page = %d; want 1", got.Page)
+		}
+	})
+
+	t.Run("non-integer page in cookie yields page 1", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "station_id=x&range=24h&page=abc"})
+		got := readWeatherStateCookie(req)
+		if got.Page != 1 {
+			t.Errorf("readWeatherStateCookie(page=abc) Page = %d; want 1", got.Page)
+		}
+	})
+
+	t.Run("missing optional fields use defaults", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: weatherStateCookieName, Value: "station_id=only"})
+		got := readWeatherStateCookie(req)
+		if got.StationID != "only" {
+			t.Errorf("StationID = %q; want \"only\"", got.StationID)
+		}
+		if got.RangeKey != "" {
+			t.Errorf("RangeKey = %q; want \"\" (not in cookie)", got.RangeKey)
+		}
+		if got.Page != 1 {
+			t.Errorf("Page = %d; want 1 (default)", got.Page)
+		}
+	})
+}
+
+func parseCookieValue(value string) (stationID, rangeKey string, page int) {
+	vals, err := url.ParseQuery(value)
+	if err != nil {
+		return "", "", 0
+	}
+	stationID = vals.Get("station_id")
+	rangeKey = vals.Get("range")
+	page, _ = strconv.Atoi(vals.Get("page"))
+	return stationID, rangeKey, page
+}
+
+func Test_writeWeatherStateCookie(t *testing.T) {
+	t.Run("writes cookie with correct name and encoded value", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		writeWeatherStateCookie(w, "st1", "24h", 2)
+		header := w.Header().Get("Set-Cookie")
+		if header == "" {
+			t.Fatal("Set-Cookie header missing")
+		}
+		if len(w.Result().Cookies()) != 1 {
+			t.Fatalf("expected 1 cookie; got %d", len(w.Result().Cookies()))
+		}
+		c := w.Result().Cookies()[0]
+		if c.Name != weatherStateCookieName {
+			t.Errorf("cookie Name = %q; want %q", c.Name, weatherStateCookieName)
+		}
+		stationID, rangeKey, page := parseCookieValue(c.Value)
+		if stationID != "st1" || rangeKey != "24h" || page != 2 {
+			t.Errorf("cookie Value parsed: station_id=%q range=%q page=%d; want st1, 24h, 2", stationID, rangeKey, page)
+		}
+		if c.Path != "/" {
+			t.Errorf("cookie Path = %q; want \"/\"", c.Path)
+		}
+		if c.MaxAge != weatherStateCookieMaxAge {
+			t.Errorf("cookie MaxAge = %d; want %d", c.MaxAge, weatherStateCookieMaxAge)
+		}
+		if !c.HttpOnly {
+			t.Error("cookie HttpOnly = false; want true")
+		}
+	})
+
+	t.Run("invalid range key uses default", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		writeWeatherStateCookie(w, "st1", "invalid", 1)
+		c := w.Result().Cookies()[0]
+		_, rangeKey, page := parseCookieValue(c.Value)
+		if rangeKey != defaultHistoryRangeKey {
+			t.Errorf("range = %q; want default %q", rangeKey, defaultHistoryRangeKey)
+		}
+		if page != 1 {
+			t.Errorf("page = %d; want 1", page)
+		}
+	})
+
+	t.Run("page less than 1 uses 1", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		writeWeatherStateCookie(w, "st1", "24h", 0)
+		c := w.Result().Cookies()[0]
+		_, _, page := parseCookieValue(c.Value)
+		if page != 1 {
+			t.Errorf("page = %d; want 1", page)
+		}
+	})
+
+	t.Run("negative page uses 1", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		writeWeatherStateCookie(w, "x", "1h", -5)
+		c := w.Result().Cookies()[0]
+		_, _, page := parseCookieValue(c.Value)
+		if page != 1 {
+			t.Errorf("page = %d; want 1", page)
 		}
 	})
 }
