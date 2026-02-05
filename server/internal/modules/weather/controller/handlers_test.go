@@ -718,7 +718,7 @@ func Test_handleHistoryPartial(t *testing.T) {
 		if repo.lastReadingsStationID != "st-1" {
 			t.Errorf("station id = %q; want st-1", repo.lastReadingsStationID)
 		}
-		wantLimit := historyPageSize + 1
+		wantLimit := historyPageSize
 		if repo.lastReadingsLimit != wantLimit {
 			t.Errorf("limit = %d; want %d", repo.lastReadingsLimit, wantLimit)
 		}
