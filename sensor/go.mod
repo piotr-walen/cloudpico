@@ -1,4 +1,4 @@
-module cloudpico-firmware
+module cloudpico-sensor
 
 go 1.25.6
 
