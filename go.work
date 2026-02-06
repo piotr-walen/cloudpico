@@ -1,0 +1,9 @@
+go 1.25.6
+
+use (
+	./gateway
+	./server
+	./sensor
+	./tools
+    ./shared
+)
