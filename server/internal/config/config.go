@@ -25,6 +25,11 @@ type Config struct {
 	SQLiteMaxOpenConns    int
 	SQLiteMaxIdleConns    int
 	SQLiteConnMaxLifetime time.Duration
+
+	MQTTBroker   string
+	MQTTPort     int
+	MQTTClientID string
+	MQTTTopic    string // Topic pattern to subscribe to, e.g., "stations/+/telemetry"
 }
 
 func LoadFromEnv() (Config, error) {
@@ -98,6 +103,30 @@ func LoadFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("invalid SQLITE_CONN_MAX_LIFETIME %q: %w", strings.TrimSpace(os.Getenv("SQLITE_CONN_MAX_LIFETIME")), err)
 	}
 
+	mqttBroker := strings.TrimSpace(os.Getenv("MQTT_BROKER"))
+	if mqttBroker == "" {
+		mqttBroker = "localhost"
+	}
+
+	mqttPortStr := strings.TrimSpace(os.Getenv("MQTT_PORT"))
+	if mqttPortStr == "" {
+		mqttPortStr = "1883"
+	}
+	mqttPort, err := strconv.Atoi(mqttPortStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid MQTT_PORT %q: %w", mqttPortStr, err)
+	}
+
+	mqttClientID := strings.TrimSpace(os.Getenv("MQTT_CLIENT_ID"))
+	if mqttClientID == "" {
+		mqttClientID = "cloudpico-server"
+	}
+
+	mqttTopic := strings.TrimSpace(os.Getenv("MQTT_TOPIC"))
+	if mqttTopic == "" {
+		mqttTopic = "stations/+/telemetry"
+	}
+
 	return Config{
 		AppEnv:                appEnv,
 		LogLevel:              level,
@@ -109,6 +138,10 @@ func LoadFromEnv() (Config, error) {
 		SQLiteMaxOpenConns:    sqliteMaxOpenConns,
 		SQLiteMaxIdleConns:    sqliteMaxIdleConns,
 		SQLiteConnMaxLifetime: sqliteConnMaxLifetime,
+		MQTTBroker:            mqttBroker,
+		MQTTPort:              mqttPort,
+		MQTTClientID:          mqttClientID,
+		MQTTTopic:             mqttTopic,
 	}, nil
 }
 

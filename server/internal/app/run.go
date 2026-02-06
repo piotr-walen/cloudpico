@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -12,6 +13,7 @@ import (
 	httpapi "cloudpico-server/internal/httpapi"
 	weather "cloudpico-server/internal/modules/weather"
 	weatherviews "cloudpico-server/internal/modules/weather/views"
+	"cloudpico-server/internal/mqtt"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -25,6 +27,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 		"sqliteMaxOpenConns", cfg.SQLiteMaxOpenConns,
 		"sqliteMaxIdleConns", cfg.SQLiteMaxIdleConns,
 		"sqliteConnMaxLifetime", cfg.SQLiteConnMaxLifetime,
+		"mqttBroker", cfg.MQTTBroker,
+		"mqttPort", cfg.MQTTPort,
+		"mqttTopic", cfg.MQTTTopic,
 	)
 	dbConn, err := db.Open(cfg)
 	if err != nil {
@@ -47,12 +52,24 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	slog.Info("database connection successful")
 
+	// Initialize MQTT subscriber
+	mqttSubscriber, err := mqtt.NewSubscriber(cfg, slog.Default())
+	if err != nil {
+		return fmt.Errorf("create mqtt subscriber: %w", err)
+	}
+	defer mqttSubscriber.Disconnect()
+
+	// Connect to MQTT broker
+	if err := mqttSubscriber.Connect(ctx); err != nil {
+		return fmt.Errorf("connect mqtt: %w", err)
+	}
+
 	mux := httpapi.NewMux(dbConn, cfg.StaticDir)
 
 	if err := weatherviews.LoadTemplates(); err != nil {
 		return err
 	}
-	weather.RegisterFeature(mux, dbConn)
+	weather.RegisterFeature(mux, dbConn, mqttSubscriber)
 
 	srv := httpapi.NewServer(cfg, mux)
 
