@@ -16,6 +16,14 @@ func registerMQTTHandler(subscriber mqtt.MQTTSubscriber, repo repository.Weather
 			"timestamp", telemetry.Timestamp,
 		)
 
+		slog.Info("inserting reading",
+			"station_id", telemetry.StationID,
+			"timestamp", telemetry.Timestamp,
+			"temperature", telemetry.Temperature,
+			"humidity", telemetry.Humidity,
+			"pressure", telemetry.Pressure,
+		)
+
 		err := repo.InsertReading(
 			telemetry.StationID,
 			telemetry.Timestamp,

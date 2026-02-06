@@ -100,7 +100,12 @@ func (s *Subscriber) Connect(ctx context.Context) error {
 			if err := token.Error(); err != nil {
 				return fmt.Errorf("mqtt connect: %w", err)
 			}
-			// OnConnectHandler sets connected=true.
+			// Set connected state immediately after successful connection
+			// (OnConnectHandler will also set it, but we need it set now for subscribe)
+			if s.client.IsConnected() {
+				s.setConnected(true)
+			}
+			s.logger.Info("mqtt connected", "broker", s.cfg.MQTTBroker, "port", s.cfg.MQTTPort)
 			break
 		}
 
@@ -115,6 +120,7 @@ func (s *Subscriber) Connect(ctx context.Context) error {
 		}
 	}
 
+	s.logger.Info("subscribing to mqtt topic", "topic", s.cfg.MQTTTopic)
 	// Subscribe to the topic
 	if err := s.subscribe(); err != nil {
 		s.client.Disconnect(0)
