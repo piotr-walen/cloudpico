@@ -37,7 +37,7 @@ func main() {
 	defer stop()
 
 	if err := app.Run(ctx, cfg); err != nil && !errors.Is(err, context.Canceled) {
-		slog.Error("run failed", "err", err)
+		slog.Error("run failed", "error", err)
 		os.Exit(1)
 	}
 

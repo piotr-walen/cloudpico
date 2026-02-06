@@ -5,7 +5,6 @@ import (
 	"cloudpico-gateway/internal/mqtt"
 	"context"
 	"log/slog"
-	"time"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -26,12 +25,6 @@ func Run(ctx context.Context, cfg config.Config) error {
 	if err := mqttClient.Connect(ctx); err != nil {
 		return err
 	}
-
-	mqttClient.PublishStationHealth(mqtt.StationHealth{
-		StationID: "test",
-		LastSeen:  time.Now(),
-		Healthy:   false,
-	})
 
 	slog.Info("gateway started, ready to publish telemetry")
 

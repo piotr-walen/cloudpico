@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"math"
+	"math/rand"
 	"sync"
 	"time"
 
@@ -16,13 +16,15 @@ import (
 
 // Client wraps an MQTT client with reconnection and backoff logic
 type Client struct {
-	client    mqtt.Client
-	cfg       config.Config
-	logger    *slog.Logger
-	mu        sync.RWMutex
-	connected bool
-	stopCh    chan struct{}
-	wg        sync.WaitGroup
+	client     mqtt.Client
+	cfg        config.Config
+	logger     *slog.Logger
+	mu         sync.RWMutex
+	connected  bool
+	monitoring bool
+	stopCh     chan struct{}
+	wg         sync.WaitGroup
+	stopOnce   sync.Once
 }
 
 // Telemetry represents station telemetry data
@@ -77,12 +79,13 @@ func NewClient(cfg config.Config, logger *slog.Logger) (*Client, error) {
 
 // Connect establishes connection to the MQTT broker with exponential backoff
 func (c *Client) Connect(ctx context.Context) error {
+	// Check if already connected (quick check with lock)
 	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.connected {
+		c.mu.Unlock()
 		return nil
 	}
+	c.mu.Unlock()
 
 	backoff := time.Second
 	maxBackoff := 60 * time.Second
@@ -97,18 +100,31 @@ func (c *Client) Connect(ctx context.Context) error {
 		default:
 		}
 
+		// Attempt connection (without holding lock)
 		token := c.client.Connect()
 		if token.Wait() && token.Error() == nil {
+			// Connection successful - update state with lock
+			c.mu.Lock()
+			// Double-check in case another goroutine connected while we were waiting
+			if c.connected {
+				c.mu.Unlock()
+				return nil
+			}
 			c.connected = true
+
+			// Start monitoring connection if not already monitoring
+			if !c.monitoring {
+				c.monitoring = true
+				c.wg.Add(1)
+				go c.monitorConnection(ctx)
+			}
+			c.mu.Unlock()
+
 			c.logger.Info("mqtt connection established",
 				"broker", c.cfg.MQTTBroker,
 				"port", c.cfg.MQTTPort,
 				"client_id", c.cfg.MQTTClientID,
 			)
-
-			// Start monitoring connection
-			c.wg.Add(1)
-			go c.monitorConnection(ctx)
 
 			return nil
 		}
@@ -120,6 +136,7 @@ func (c *Client) Connect(ctx context.Context) error {
 			"backoff", backoff,
 		)
 
+		// Release lock during backoff sleep to allow other operations
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -134,14 +151,19 @@ func (c *Client) Connect(ctx context.Context) error {
 			backoff = maxBackoff
 		}
 		// Add jitter (±20%)
-		jitter := time.Duration(float64(backoff) * 0.2 * (math.Sin(float64(attempt)) + 1))
+		jitter := time.Duration(float64(backoff) * 0.2 * (rand.Float64()*2 - 1))
 		backoff = backoff + jitter
 	}
 }
 
 // monitorConnection monitors the connection and updates internal state
 func (c *Client) monitorConnection(ctx context.Context) {
-	defer c.wg.Done()
+	defer func() {
+		c.mu.Lock()
+		c.monitoring = false
+		c.mu.Unlock()
+		c.wg.Done()
+	}()
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -262,7 +284,9 @@ func (c *Client) IsConnected() bool {
 
 // Disconnect closes the MQTT connection
 func (c *Client) Disconnect() {
-	close(c.stopCh)
+	c.stopOnce.Do(func() {
+		close(c.stopCh)
+	})
 	c.wg.Wait()
 
 	c.mu.Lock()
@@ -273,4 +297,5 @@ func (c *Client) Disconnect() {
 		c.connected = false
 		c.logger.Info("mqtt disconnected")
 	}
+	c.monitoring = false
 }
