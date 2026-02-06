@@ -93,7 +93,7 @@ func (c *Client) Connect(ctx context.Context) error {
 		return nil
 	}
 
-	// Start connect attempt. With ConnectRetry(true), it may keep retrying internally.
+	// Start connect attempt. With ConnectRetry(true),
 	token := c.client.Connect()
 
 	// Wait in a ctx/stop-aware loop.
@@ -109,8 +109,10 @@ func (c *Client) Connect(ctx context.Context) error {
 
 		select {
 		case <-ctx.Done():
+			c.client.Disconnect(0)
 			return ctx.Err()
 		case <-c.stopCh:
+			c.client.Disconnect(0)
 			return fmt.Errorf("client stopped")
 		default:
 		}
@@ -118,14 +120,13 @@ func (c *Client) Connect(ctx context.Context) error {
 }
 
 // PublishTelemetry publishes telemetry data to the station topic.
-func (c *Client) PublishTelemetry(stationID string, telemetry Telemetry) error {
+func (c *Client) PublishTelemetry(telemetry Telemetry) error {
 	if !c.IsConnected() {
 		return fmt.Errorf("mqtt client not connected")
 	}
 
-	topic := fmt.Sprintf("stations/%s/telemetry", stationID)
+	topic := fmt.Sprintf("stations/%s/telemetry", telemetry.StationID)
 
-	telemetry.StationID = stationID
 	if telemetry.Timestamp.IsZero() {
 		telemetry.Timestamp = time.Now()
 	}
@@ -144,7 +145,7 @@ func (c *Client) PublishTelemetry(stationID string, telemetry Telemetry) error {
 		return fmt.Errorf("publish telemetry: %w", token.Error())
 	}
 
-	c.logger.Debug("published telemetry", "topic", topic, "station_id", stationID)
+	c.logger.Debug("published telemetry", "topic", topic, "station_id", telemetry.StationID)
 	return nil
 }
 
