@@ -54,7 +54,6 @@ func NewClient(cfg config.Config, logger *slog.Logger) (*Client, error) {
 	// Session settings
 	opts.SetCleanSession(true)
 
-	// Option A: let Paho handle initial connect retries + reconnects
 	opts.SetAutoReconnect(true)
 	opts.SetConnectRetry(true)
 	opts.SetConnectRetryInterval(5 * time.Second)
@@ -210,8 +209,6 @@ func (c *Client) Disconnect() {
 	c.setConnected(false)
 	c.logger.Info("mqtt disconnected")
 }
-
-// --- internal helpers ---
 
 func (c *Client) setConnected(v bool) {
 	c.mu.Lock()
