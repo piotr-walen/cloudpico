@@ -59,11 +59,6 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	defer mqttSubscriber.Disconnect()
 
-	// Connect to MQTT broker
-	if err := mqttSubscriber.Connect(ctx); err != nil {
-		return fmt.Errorf("connect mqtt: %w", err)
-	}
-
 	mux := httpapi.NewMux(dbConn, cfg.StaticDir)
 
 	if err := weatherviews.LoadTemplates(); err != nil {
@@ -77,6 +72,14 @@ func Run(ctx context.Context, cfg config.Config) error {
 	go func() {
 		slog.Info("http listening", "addr", cfg.HTTPAddr)
 		errCh <- srv.ListenAndServe()
+	}()
+
+	// Connect to MQTT broker in background (non-blocking)
+	// This allows the HTTP server to start even if MQTT is unavailable
+	go func() {
+		if err := mqttSubscriber.Connect(ctx); err != nil {
+			slog.Warn("mqtt connection failed (continuing without mqtt)", "error", err)
+		}
 	}()
 
 	select {
