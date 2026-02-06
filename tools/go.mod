@@ -1,4 +1,4 @@
-module cloudpico-db-tooling
+module cloudpico-tooling
 
 go 1.25.6
 
