@@ -9,7 +9,7 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-// Minimal schema matching db-tooling/sql/schema.sql for in-memory tests.
+// Minimal schema matching tools/migrate/sql/0001_schema.sql for in-memory tests.
 const testSchema = `
 CREATE TABLE IF NOT EXISTS stations (
   id         INTEGER PRIMARY KEY,

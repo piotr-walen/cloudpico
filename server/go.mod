@@ -4,6 +4,7 @@ go 1.25.6
 
 require (
 	cloudpico-shared v0.0.0
+	cloudpico-tools v0.0.0
 	github.com/docker/go-connections v0.6.0
 	github.com/eclipse/paho.mqtt.golang v1.5.1
 	github.com/lmittmann/tint v1.1.2
@@ -71,4 +72,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace cloudpico-shared => ../shared
+replace (
+	cloudpico-shared => ../shared
+	cloudpico-tools => ../tools
+)
