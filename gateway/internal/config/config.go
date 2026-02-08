@@ -61,7 +61,7 @@ func LoadFromEnv() (Config, error) {
 	if bme280AddressStr == "" {
 		bme280AddressStr = "0x76"
 	}
-	bme280Address, err := strconv.ParseUint(bme280AddressStr, 16, 16)
+	bme280Address, err := strconv.ParseUint(bme280AddressStr, 0, 16)
 	if err != nil {
 		return Config{}, fmt.Errorf("invalid BME280_ADDRESS %q: %w", bme280AddressStr, err)
 	}
