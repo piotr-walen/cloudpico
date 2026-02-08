@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -14,6 +15,10 @@ type Config struct {
 	MQTTBroker   string
 	MQTTPort     int
 	MQTTClientID string
+
+	BME280Address      uint16
+	SensorPollInterval time.Duration
+	DeviceStationID    string
 }
 
 func LoadFromEnv() (Config, error) {
@@ -55,12 +60,41 @@ func LoadFromEnv() (Config, error) {
 		mqttClientID = "cloudpico-gateway"
 	}
 
+	bme280AddressStr := strings.TrimSpace(os.Getenv("BME280_ADDRESS"))
+	if bme280AddressStr == "" {
+		bme280AddressStr = "0x76"
+	}
+	bme280Address, err := strconv.ParseUint(bme280AddressStr, 0, 16)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid BME280_ADDRESS %q: %w", bme280AddressStr, err)
+	}
+
+	sensorPollIntervalStr := strings.TrimSpace(os.Getenv("SENSOR_POLL_INTERVAL"))
+	if sensorPollIntervalStr == "" {
+		sensorPollIntervalStr = "60s"
+	}
+	sensorPollInterval, err := time.ParseDuration(sensorPollIntervalStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid SENSOR_POLL_INTERVAL %q: %w", sensorPollIntervalStr, err)
+	}
+	if sensorPollInterval <= 0 {
+		return Config{}, fmt.Errorf("SENSOR_POLL_INTERVAL must be positive, got %v", sensorPollInterval)
+	}
+
+	deviceStationID := strings.TrimSpace(os.Getenv("DEVICE_STATION_ID"))
+	if deviceStationID == "" {
+		deviceStationID = "home"
+	}
+
 	return Config{
-		AppEnv:       appEnv,
-		LogLevel:     level,
-		MQTTBroker:   mqttBroker,
-		MQTTPort:     mqttPort,
-		MQTTClientID: mqttClientID,
+		AppEnv:             appEnv,
+		LogLevel:           level,
+		MQTTBroker:         mqttBroker,
+		MQTTPort:           mqttPort,
+		MQTTClientID:       mqttClientID,
+		BME280Address:      uint16(bme280Address),
+		SensorPollInterval: sensorPollInterval,
+		DeviceStationID:    deviceStationID,
 	}, nil
 }
 

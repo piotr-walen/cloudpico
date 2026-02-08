@@ -49,7 +49,22 @@ func parseTelemetry(payload []byte) (cloudpico_shared.Telemetry, error) {
 		return cloudpico_shared.Telemetry{}, err
 	}
 	return telemetry, nil
+}
 
+// formatOptFloat formats an optional float for logging; returns "-" if nil.
+func formatOptFloat(p *float64, unit string) string {
+	if p == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%f %s", *p, unit)
+}
+
+// formatOptInt formats an optional int for logging; returns "-" if nil.
+func formatOptInt(p *int) string {
+	if p == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%d", *p)
 }
 
 // registerMQTTHandler sets up the weather module's MQTT message handler
@@ -67,11 +82,11 @@ func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.We
 		slog.Info("inserting reading",
 			"station_id", telemetry.StationID,
 			"timestamp", telemetry.Timestamp.String(),
-			"temperature", fmt.Sprintf("%f °C", *telemetry.Temperature),
-			"humidity", fmt.Sprintf("%f %%", *telemetry.Humidity),
-			"pressure", fmt.Sprintf("%f hPa", *telemetry.Pressure),
-			"battery", fmt.Sprintf("%f V", *telemetry.Battery),
-			"sequence", fmt.Sprintf("%d", *telemetry.Sequence),
+			"temperature", formatOptFloat(telemetry.Temperature, "°C"),
+			"humidity", formatOptFloat(telemetry.Humidity, "%"),
+			"pressure", formatOptFloat(telemetry.Pressure, "hPa"),
+			"battery", formatOptFloat(telemetry.Battery, "V"),
+			"sequence", formatOptInt(telemetry.Sequence),
 		)
 
 		err = repo.InsertReading(
