@@ -14,6 +14,8 @@ type Config struct {
 	MQTTBroker   string
 	MQTTPort     int
 	MQTTClientID string
+
+	BME280Address uint16
 }
 
 func LoadFromEnv() (Config, error) {
@@ -55,12 +57,22 @@ func LoadFromEnv() (Config, error) {
 		mqttClientID = "cloudpico-gateway"
 	}
 
+	bme280AddressStr := strings.TrimSpace(os.Getenv("BME280_ADDRESS"))
+	if bme280AddressStr == "" {
+		bme280AddressStr = "0x76"
+	}
+	bme280Address, err := strconv.ParseUint(bme280AddressStr, 16, 16)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid BME280_ADDRESS %q: %w", bme280AddressStr, err)
+	}
+
 	return Config{
-		AppEnv:       appEnv,
-		LogLevel:     level,
-		MQTTBroker:   mqttBroker,
-		MQTTPort:     mqttPort,
-		MQTTClientID: mqttClientID,
+		AppEnv:        appEnv,
+		LogLevel:      level,
+		MQTTBroker:    mqttBroker,
+		MQTTPort:      mqttPort,
+		MQTTClientID:  mqttClientID,
+		BME280Address: uint16(bme280Address),
 	}, nil
 }
 
