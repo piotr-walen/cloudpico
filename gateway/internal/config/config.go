@@ -71,7 +71,7 @@ func LoadFromEnv() (Config, error) {
 
 	sensorPollIntervalStr := strings.TrimSpace(os.Getenv("SENSOR_POLL_INTERVAL"))
 	if sensorPollIntervalStr == "" {
-		sensorPollIntervalStr = "1s"
+		sensorPollIntervalStr = "60s"
 	}
 	sensorPollInterval, err := time.ParseDuration(sensorPollIntervalStr)
 	if err != nil {
