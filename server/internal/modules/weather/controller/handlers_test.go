@@ -26,6 +26,7 @@ type mockRepo struct {
 	lastReadingsTo        time.Time
 	lastReadingsLimit     int
 	lastReadingsOffset    int
+	insertErr             error
 }
 
 func (m *mockRepo) GetStations() ([]types.Station, error) {
@@ -53,6 +54,10 @@ func (m *mockRepo) GetReadingsCount(stationID string, from, to time.Time) (int, 
 		return m.readingsCount, nil
 	}
 	return len(m.readings), nil
+}
+
+func (m *mockRepo) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64) error {
+	return m.insertErr
 }
 
 func Test_handleDashboard(t *testing.T) {

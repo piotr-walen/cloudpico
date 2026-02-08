@@ -11,9 +11,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/docker/go-connections/nat"
+	testcontainers "github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 const repoRootRel = ".."   // relative to ./e2e
@@ -21,8 +26,12 @@ const mainPkgRel = "./cmd" // main.go lives in cmd/
 
 func TestSmoke_Healthz(t *testing.T) {
 	repoRoot := repoRootPath(t)
+	ctx := context.Background()
 
-	// Start SQLite "service" container that creates a DB file in a host temp dir
+	// Start MQTT broker (Mosquitto) via testcontainers
+	mqttHost, mqttPort := startMosquitto(t, ctx)
+
+	// Start SQLite "service" (temp DB file)
 	sqlitePath := startSQLite(t)
 
 	bin := buildBinary(t, repoRoot)
@@ -37,6 +46,10 @@ func TestSmoke_Healthz(t *testing.T) {
 		// SQLite envs (match config)
 		"SQLITE_DRIVER=sqlite3",
 		"SQLITE_PATH="+sqlitePath,
+
+		// MQTT envs (point at testcontainer)
+		"MQTT_BROKER="+mqttHost,
+		"MQTT_PORT="+strconv.Itoa(mqttPort),
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -52,7 +65,7 @@ func TestSmoke_Healthz(t *testing.T) {
 	client := &http.Client{Timeout: 2 * time.Second}
 	url := "http://" + addr + "/healthz"
 
-	waitForOK(t, client, url, 5*time.Second)
+	waitForOK(t, client, url, 10*time.Second)
 
 	resp, err := client.Get(url)
 	if err != nil {
@@ -64,15 +77,43 @@ func TestSmoke_Healthz(t *testing.T) {
 		t.Fatalf("status=%d want=%d", resp.StatusCode, http.StatusOK)
 	}
 
-	var body map[string]string
+	var body map[string]any
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		t.Fatalf("decode json: %v", err)
 	}
 	if body["status"] != "ok" {
 		t.Fatalf("body.status=%q want=%q", body["status"], "ok")
 	}
+	if body["mqtt"] != "connected" {
+		t.Fatalf("body.mqtt=%q want=%q (healthcheck should report MQTT connection)", body["mqtt"], "connected")
+	}
 
 	stopServer(t, cmd)
+}
+
+// startMosquitto starts an Eclipse Mosquitto MQTT broker in a container and returns host and port.
+func startMosquitto(t *testing.T, ctx context.Context) (host string, port int) {
+	t.Helper()
+
+	mqttC, err := testcontainers.Run(ctx, "eclipse-mosquitto:2",
+		testcontainers.WithExposedPorts("1883/tcp"),
+		testcontainers.WithWaitStrategy(wait.ForListeningPort(nat.Port("1883/tcp"))),
+	)
+	testcontainers.CleanupContainer(t, mqttC)
+	if err != nil {
+		t.Fatalf("start mosquitto container: %v", err)
+	}
+
+	host, err = mqttC.Host(ctx)
+	if err != nil {
+		t.Fatalf("get mosquitto host: %v", err)
+	}
+	mapped, err := mqttC.MappedPort(ctx, nat.Port("1883/tcp"))
+	if err != nil {
+		t.Fatalf("get mosquitto mapped port: %v", err)
+	}
+	port = mapped.Int()
+	return host, port
 }
 
 func startSQLite(t *testing.T) string {

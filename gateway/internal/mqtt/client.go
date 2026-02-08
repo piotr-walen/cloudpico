@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cloudpico-gateway/internal/config"
+	cloudpico_shared "cloudpico-shared/types"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 )
@@ -22,16 +23,6 @@ type Client struct {
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
-}
-
-type Telemetry struct {
-	StationID   string    `json:"station_id"`
-	Timestamp   time.Time `json:"timestamp"`
-	Temperature *float64  `json:"temperature_c,omitempty"`
-	Humidity    *float64  `json:"humidity_pct,omitempty"`
-	Pressure    *float64  `json:"pressure_hpa,omitempty"`
-	Battery     *float64  `json:"battery_v,omitempty"`
-	Sequence    *int      `json:"sequence,omitempty"`
 }
 
 type StationHealth struct {
@@ -120,7 +111,7 @@ func (c *Client) Connect(ctx context.Context) error {
 }
 
 // PublishTelemetry publishes telemetry data to the station topic.
-func (c *Client) PublishTelemetry(telemetry Telemetry) error {
+func (c *Client) PublishTelemetry(telemetry cloudpico_shared.Telemetry) error {
 	if !c.IsConnected() {
 		return fmt.Errorf("mqtt client not connected")
 	}

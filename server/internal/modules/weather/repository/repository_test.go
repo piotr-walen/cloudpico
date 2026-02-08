@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"strings"
 	"testing"
 	"time"
 
@@ -489,6 +490,162 @@ func TestGetReadingsCount(t *testing.T) {
 	}
 }
 
+func TestInsertReading_ByNumericStationID(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'Central')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	repo := NewRepository(db)
+
+	ts := time.Date(2025, 2, 1, 12, 0, 0, 0, time.UTC)
+	temp := 22.5
+	hum := 65.0
+	press := 1013.25
+
+	err = repo.InsertReading("1", ts, &temp, &hum, &press)
+	if err != nil {
+		t.Fatalf("InsertReading: %v", err)
+	}
+
+	readings, err := repo.GetLatestReadings("1", 1)
+	if err != nil {
+		t.Fatalf("GetLatestReadings: %v", err)
+	}
+	if len(readings) != 1 {
+		t.Fatalf("GetLatestReadings: got %d readings, want 1", len(readings))
+	}
+	if readings[0].Value != 22.5 || readings[0].HumidityPct != 65.0 || readings[0].PressureHpa != 1013.25 {
+		t.Errorf("reading: got temp=%v humidity=%v pressure=%v, want 22.5, 65, 1013.25",
+			readings[0].Value, readings[0].HumidityPct, readings[0].PressureHpa)
+	}
+	if readings[0].StationID != "1" {
+		t.Errorf("StationID: got %q, want 1", readings[0].StationID)
+	}
+}
+
+func TestInsertReading_ByStationName(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (2, 'Alpha')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	repo := NewRepository(db)
+
+	ts := time.Date(2025, 3, 15, 10, 30, 0, 0, time.UTC)
+	temp := 18.0
+	hum := 50.0
+	press := 1015.0
+
+	err = repo.InsertReading("Alpha", ts, &temp, &hum, &press)
+	if err != nil {
+		t.Fatalf("InsertReading(Alpha): %v", err)
+	}
+
+	readings, err := repo.GetLatestReadings("2", 1)
+	if err != nil {
+		t.Fatalf("GetLatestReadings: %v", err)
+	}
+	if len(readings) != 1 {
+		t.Fatalf("GetLatestReadings: got %d readings, want 1", len(readings))
+	}
+	if readings[0].Value != 18.0 || readings[0].HumidityPct != 50.0 || readings[0].PressureHpa != 1015.0 {
+		t.Errorf("reading: got temp=%v humidity=%v pressure=%v, want 18, 50, 1015",
+			readings[0].Value, readings[0].HumidityPct, readings[0].PressureHpa)
+	}
+}
+
+func TestInsertReading_InvalidHumidity(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	repo := NewRepository(db)
+
+	ts := time.Date(2025, 2, 1, 12, 0, 0, 0, time.UTC)
+	temp := 20.0
+
+	t.Run("humidity_below_zero", func(t *testing.T) {
+		hum := -1.0
+		press := 1013.0
+		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		if err == nil {
+			t.Fatal("InsertReading: expected error for humidity -1")
+		}
+		if !strings.Contains(err.Error(), "humidity_pct") || !strings.Contains(err.Error(), "0-100") {
+			t.Errorf("error message: got %q", err.Error())
+		}
+	})
+
+	t.Run("humidity_above_100", func(t *testing.T) {
+		hum := 101.0
+		press := 1013.0
+		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		if err == nil {
+			t.Fatal("InsertReading: expected error for humidity 101")
+		}
+		if !strings.Contains(err.Error(), "humidity_pct") || !strings.Contains(err.Error(), "0-100") {
+			t.Errorf("error message: got %q", err.Error())
+		}
+	})
+}
+
+func TestInsertReading_InvalidPressure(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	repo := NewRepository(db)
+
+	ts := time.Date(2025, 2, 1, 12, 0, 0, 0, time.UTC)
+	temp := 20.0
+	hum := 50.0
+
+	t.Run("pressure_zero", func(t *testing.T) {
+		press := 0.0
+		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		if err == nil {
+			t.Fatal("InsertReading: expected error for pressure 0")
+		}
+		if !strings.Contains(err.Error(), "pressure_hpa") || !strings.Contains(err.Error(), "positive") {
+			t.Errorf("error message: got %q", err.Error())
+		}
+	})
+
+	t.Run("pressure_negative", func(t *testing.T) {
+		press := -10.0
+		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		if err == nil {
+			t.Fatal("InsertReading: expected error for pressure -10")
+		}
+		if !strings.Contains(err.Error(), "pressure_hpa") || !strings.Contains(err.Error(), "positive") {
+			t.Errorf("error message: got %q", err.Error())
+		}
+	})
+}
+
 // Ensure repo implements the interface.
 var _ WeatherRepository = (*repositoryImpl)(nil)
 
@@ -499,10 +656,13 @@ func TestRepository_ImplementsInterface(t *testing.T) {
 			t.Fatalf("close db: %v", closeErr)
 		}
 	}()
+	_, _ = db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
 	repo := NewRepository(db)
 	// Compile-time check; also call all methods for coverage.
 	_, _ = repo.GetStations()
 	_, _ = repo.GetLatestReadings("1", 100)
 	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10, 0)
 	_, _ = repo.GetReadingsCount("1", time.Now().Add(-24*time.Hour), time.Now())
+	temp, hum, press := 20.0, 50.0, 1013.0
+	_ = repo.InsertReading("1", time.Now(), &temp, &hum, &press)
 }

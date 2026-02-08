@@ -12,6 +12,7 @@ import (
 	httpapi "cloudpico-server/internal/httpapi"
 	weather "cloudpico-server/internal/modules/weather"
 	weatherviews "cloudpico-server/internal/modules/weather/views"
+	"cloudpico-server/internal/mqtt"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -25,6 +26,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 		"sqliteMaxOpenConns", cfg.SQLiteMaxOpenConns,
 		"sqliteMaxIdleConns", cfg.SQLiteMaxIdleConns,
 		"sqliteConnMaxLifetime", cfg.SQLiteConnMaxLifetime,
+		"mqttBroker", cfg.MQTTBroker,
+		"mqttPort", cfg.MQTTPort,
+		"mqttTopic", cfg.MQTTTopic,
 	)
 	dbConn, err := db.Open(cfg)
 	if err != nil {
@@ -47,12 +51,24 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	slog.Info("database connection successful")
 
-	mux := httpapi.NewMux(dbConn, cfg.StaticDir)
-
+	// Set MQTT handler before Connect so OnConnectHandler can subscribe immediately.
+	// The broker may send queued messages right after CONNACK; we must be subscribed
+	// before that to receive them.
 	if err := weatherviews.LoadTemplates(); err != nil {
 		return err
 	}
-	weather.RegisterFeature(mux, dbConn)
+	mqttSubscriber := mqtt.NewSubscriber(cfg)
+	mux := httpapi.NewMux(dbConn, cfg.StaticDir, mqttSubscriber)
+	weather.RegisterFeature(mux, dbConn, mqttSubscriber)
+
+	// Use a short timeout for initial MQTT connect so we don't block startup when broker is down (e.g. E2E).
+	connectCtx, connectCancel := context.WithTimeout(ctx, 5*time.Second)
+	err = mqttSubscriber.Connect(connectCtx)
+	connectCancel()
+	if err != nil {
+		slog.Warn("mqtt connection failed (continuing without mqtt)", "error", err)
+		// Continue so HTTP server and /healthz still work when MQTT is unavailable (e.g. E2E).
+	}
 
 	srv := httpapi.NewServer(cfg, mux)
 
@@ -73,6 +89,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	slog.Info("mqtt disconnecting")
+	mqttSubscriber.Disconnect()
 
 	slog.Info("http shutting down")
 	if err := srv.Shutdown(shutdownCtx); err != nil {
