@@ -9,7 +9,7 @@ import (
 	"net/http"
 )
 
-func RegisterFeature(mux *http.ServeMux, db *sql.DB, subscriber mqtt.MQTTSubscriber) {
+func RegisterFeature(mux *http.ServeMux, db *sql.DB, subscriber *mqtt.Subscriber) {
 	weatherRepository := repository.NewRepository(db)
 	weatherService := service.NewService(weatherRepository)
 	weatherService.Register(subscriber)

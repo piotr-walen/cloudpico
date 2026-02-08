@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -52,19 +51,20 @@ func Run(ctx context.Context, cfg config.Config) error {
 	}
 	slog.Info("database connection successful")
 
-	// Initialize MQTT subscriber
-	mqttSubscriber, err := mqtt.NewSubscriber(cfg, slog.Default())
-	if err != nil {
-		return fmt.Errorf("create mqtt subscriber: %w", err)
-	}
-	defer mqttSubscriber.Disconnect()
-
+	// Set MQTT handler before Connect so OnConnectHandler can subscribe immediately.
+	// The broker may send queued messages right after CONNACK; we must be subscribed
+	// before that to receive them.
 	mux := httpapi.NewMux(dbConn, cfg.StaticDir)
-
 	if err := weatherviews.LoadTemplates(); err != nil {
 		return err
 	}
+	mqttSubscriber := mqtt.NewSubscriber(cfg)
 	weather.RegisterFeature(mux, dbConn, mqttSubscriber)
+
+	if err := mqttSubscriber.Connect(ctx); err != nil {
+		slog.Warn("mqtt connection failed (continuing without mqtt)", "error", err)
+		return err
+	}
 
 	srv := httpapi.NewServer(cfg, mux)
 
@@ -72,14 +72,6 @@ func Run(ctx context.Context, cfg config.Config) error {
 	go func() {
 		slog.Info("http listening", "addr", cfg.HTTPAddr)
 		errCh <- srv.ListenAndServe()
-	}()
-
-	// Connect to MQTT broker in background (non-blocking)
-	// This allows the HTTP server to start even if MQTT is unavailable
-	go func() {
-		if err := mqttSubscriber.Connect(ctx); err != nil {
-			slog.Warn("mqtt connection failed (continuing without mqtt)", "error", err)
-		}
 	}()
 
 	select {
@@ -93,6 +85,9 @@ func Run(ctx context.Context, cfg config.Config) error {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+
+	slog.Info("mqtt disconnecting")
+	mqttSubscriber.Disconnect()
 
 	slog.Info("http shutting down")
 	if err := srv.Shutdown(shutdownCtx); err != nil {

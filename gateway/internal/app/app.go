@@ -5,6 +5,7 @@ import (
 	"cloudpico-gateway/internal/mqtt"
 	cloudpico_shared "cloudpico-shared/types"
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 )
@@ -61,12 +62,12 @@ func Run(ctx context.Context, cfg config.Config) error {
 
 				slog.Info("publishing telemetry",
 					"station_id", stationID,
-					"timestamp", telemetry.Timestamp,
-					"temperature", telemetry.Temperature,
-					"humidity", telemetry.Humidity,
-					"pressure", telemetry.Pressure,
-					"battery", telemetry.Battery,
-					"sequence", telemetry.Sequence,
+					"timestamp", fmt.Sprintf("%s", telemetry.Timestamp),
+					"temperature", fmt.Sprintf("%f °C", *telemetry.Temperature),
+					"humidity", fmt.Sprintf("%f %%", *telemetry.Humidity),
+					"pressure", fmt.Sprintf("%f hPa", *telemetry.Pressure),
+					"battery", fmt.Sprintf("%f V", *telemetry.Battery),
+					"sequence", fmt.Sprintf("%d", *telemetry.Sequence),
 				)
 				if err := mqttClient.PublishTelemetry(telemetry); err != nil {
 					slog.Error("failed to publish telemetry", "error", err)
