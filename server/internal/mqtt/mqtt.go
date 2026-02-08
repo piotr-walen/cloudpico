@@ -72,9 +72,10 @@ func (s *Subscriber) connect(ctx context.Context) error {
 }
 
 func (s *Subscriber) messageCallback(_ mqtt.Client, msg mqtt.Message) {
-	if s.messageHandler != nil {
-		_ = s.messageHandler(msg)
+	if s == nil || msg == nil || s.messageHandler == nil {
+		return
 	}
+	_ = s.messageHandler(msg)
 }
 
 func (s *Subscriber) Subscribe(ctx context.Context) error {
