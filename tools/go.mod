@@ -1,4 +1,4 @@
-module cloudpico-tooling
+module cloudpico-tools
 
 go 1.25.6
 

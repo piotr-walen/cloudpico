@@ -13,6 +13,7 @@ import (
 	weather "cloudpico-server/internal/modules/weather"
 	weatherviews "cloudpico-server/internal/modules/weather/views"
 	"cloudpico-server/internal/mqtt"
+	"cloudpico-tools/migrate"
 )
 
 func Run(ctx context.Context, cfg config.Config) error {
@@ -40,6 +41,10 @@ func Run(ctx context.Context, cfg config.Config) error {
 			slog.Error("db close", "error", closeErr)
 		}
 	}()
+
+	if err := migrate.Run(dbConn); err != nil {
+		return err
+	}
 
 	var ok int
 	err = dbConn.QueryRow(`SELECT 1`).Scan(&ok)
