@@ -16,6 +16,8 @@ import (
 )
 
 func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error {
+
+	sequence := 0
 	if _, err := host.Init(); err != nil {
 		log.Fatalf("host.Init: %v", err)
 	}
@@ -34,32 +36,43 @@ func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error 
 	}
 	defer dev.Halt()
 
+	ticker := time.NewTicker(cfg.SensorPollInterval)
+	defer ticker.Stop()
+
 	for {
-		var env physic.Env
-		if err := dev.Sense(&env); err != nil {
-			log.Fatalf("Sense: %v", err)
-		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			var env physic.Env
+			if err := dev.Sense(&env); err != nil {
+				log.Fatalf("Sense: %v", err)
+			}
 
-		temperature := env.Temperature.Celsius()
-		// RelativeHumidity is a humidity level measurement stored as an int32 fixed
-		// point integer at a precision of 0.00001%rH.
-		// Valid values are between 0% and 100%.
-		humidity := float64(env.Humidity) / 100000.0
+			temperature := env.Temperature.Celsius()
+			// RelativeHumidity is a humidity level measurement stored as an int32 fixed
+			// point integer at a precision of 0.00001%rH.
+			// Valid values are between 0% and 100%.
+			humidity := float64(env.Humidity) / 100000.0
 
-		// Pressure is a measurement of force applied to a surface per unit
-		// area (stress) stored as an int64 nano Pascal.
-		pressure := float64(env.Pressure) / 1000000000.0
+			// Pressure is a measurement of force applied to a surface per unit
+			// area (stress) stored as an int64 nano Pascal.
+			pressure := float64(env.Pressure) / 1000000000.0
 
-		telemetry := cloudpico_shared.Telemetry{
-			StationID:   "home",
-			Timestamp:   time.Now(),
-			Temperature: &temperature,
-			Humidity:    &humidity,
-			Pressure:    &pressure,
-		}
+			sequence++
 
-		if err := mqttClient.PublishTelemetry(telemetry); err != nil {
-			return err
+			telemetry := cloudpico_shared.Telemetry{
+				StationID:   "home",
+				Timestamp:   time.Now(),
+				Temperature: &temperature,
+				Humidity:    &humidity,
+				Pressure:    &pressure,
+				Sequence:    &sequence,
+			}
+
+			if err := mqttClient.PublishTelemetry(telemetry); err != nil {
+				return err
+			}
 		}
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -15,7 +16,8 @@ type Config struct {
 	MQTTPort     int
 	MQTTClientID string
 
-	BME280Address uint16
+	BME280Address      uint16
+	SensorPollInterval time.Duration
 }
 
 func LoadFromEnv() (Config, error) {
@@ -66,13 +68,26 @@ func LoadFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("invalid BME280_ADDRESS %q: %w", bme280AddressStr, err)
 	}
 
+	sensorPollIntervalStr := strings.TrimSpace(os.Getenv("SENSOR_POLL_INTERVAL"))
+	if sensorPollIntervalStr == "" {
+		sensorPollIntervalStr = "1s"
+	}
+	sensorPollInterval, err := time.ParseDuration(sensorPollIntervalStr)
+	if err != nil {
+		return Config{}, fmt.Errorf("invalid SENSOR_POLL_INTERVAL %q: %w", sensorPollIntervalStr, err)
+	}
+	if sensorPollInterval <= 0 {
+		return Config{}, fmt.Errorf("SENSOR_POLL_INTERVAL must be positive, got %v", sensorPollInterval)
+	}
+
 	return Config{
-		AppEnv:        appEnv,
-		LogLevel:      level,
-		MQTTBroker:    mqttBroker,
-		MQTTPort:      mqttPort,
-		MQTTClientID:  mqttClientID,
-		BME280Address: uint16(bme280Address),
+		AppEnv:             appEnv,
+		LogLevel:           level,
+		MQTTBroker:         mqttBroker,
+		MQTTPort:           mqttPort,
+		MQTTClientID:       mqttClientID,
+		BME280Address:      uint16(bme280Address),
+		SensorPollInterval: sensorPollInterval,
 	}, nil
 }
 
