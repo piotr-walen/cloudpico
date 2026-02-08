@@ -7,9 +7,9 @@ import (
 	"os"
 )
 
-func NewMux(db *sql.DB, staticDir string) *http.ServeMux {
+func NewMux(db *sql.DB, staticDir string, mqttStatus MQTTConnectedChecker) *http.ServeMux {
 	mux := http.NewServeMux()
-	registerHealthcheck(mux, db)
+	registerHealthcheck(mux, db, mqttStatus)
 	if staticDir != "" {
 		if _, err := os.Stat(staticDir); err == nil {
 			mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir(staticDir))))

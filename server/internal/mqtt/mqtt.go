@@ -36,6 +36,13 @@ func (s *Subscriber) setConnected(connected bool) {
 	s.connected = connected
 }
 
+// Connected reports whether the subscriber is currently connected to the MQTT broker.
+func (s *Subscriber) Connected() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.connected
+}
+
 func (s *Subscriber) connect(ctx context.Context) error {
 	token := s.client.Connect()
 	const poll = 200 * time.Millisecond

@@ -7,16 +7,22 @@ import (
 	"net/http"
 )
 
+// MQTTConnectedChecker is implemented by *mqtt.Subscriber for healthcheck.
+type MQTTConnectedChecker interface {
+	Connected() bool
+}
+
 type healthchecker interface {
 	handleHealthz(w http.ResponseWriter, r *http.Request)
 }
 
 type healthcheckerImpl struct {
-	db *sql.DB
+	db         *sql.DB
+	mqttStatus MQTTConnectedChecker
 }
 
-func NewHealthchecker(db *sql.DB) healthchecker {
-	return &healthcheckerImpl{db: db}
+func NewHealthchecker(db *sql.DB, mqttStatus MQTTConnectedChecker) healthchecker {
+	return &healthcheckerImpl{db: db, mqttStatus: mqttStatus}
 }
 
 func (h *healthcheckerImpl) handleHealthz(w http.ResponseWriter, r *http.Request) {
@@ -26,10 +32,18 @@ func (h *healthcheckerImpl) handleHealthz(w http.ResponseWriter, r *http.Request
 		utils.WriteError(w, http.StatusInternalServerError, "failed to check database connectivity")
 		return
 	}
-	utils.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+	body := map[string]any{"status": "ok"}
+	if h.mqttStatus != nil {
+		if h.mqttStatus.Connected() {
+			body["mqtt"] = "connected"
+		} else {
+			body["mqtt"] = "disconnected"
+		}
+	}
+	utils.WriteJSON(w, http.StatusOK, body)
 }
 
-func registerHealthcheck(mux *http.ServeMux, db *sql.DB) {
-	healthchecker := NewHealthchecker(db)
+func registerHealthcheck(mux *http.ServeMux, db *sql.DB, mqttStatus MQTTConnectedChecker) {
+	healthchecker := NewHealthchecker(db, mqttStatus)
 	mux.HandleFunc("GET /healthz", healthchecker.handleHealthz)
 }

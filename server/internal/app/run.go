@@ -54,16 +54,20 @@ func Run(ctx context.Context, cfg config.Config) error {
 	// Set MQTT handler before Connect so OnConnectHandler can subscribe immediately.
 	// The broker may send queued messages right after CONNACK; we must be subscribed
 	// before that to receive them.
-	mux := httpapi.NewMux(dbConn, cfg.StaticDir)
 	if err := weatherviews.LoadTemplates(); err != nil {
 		return err
 	}
 	mqttSubscriber := mqtt.NewSubscriber(cfg)
+	mux := httpapi.NewMux(dbConn, cfg.StaticDir, mqttSubscriber)
 	weather.RegisterFeature(mux, dbConn, mqttSubscriber)
 
-	if err := mqttSubscriber.Connect(ctx); err != nil {
+	// Use a short timeout for initial MQTT connect so we don't block startup when broker is down (e.g. E2E).
+	connectCtx, connectCancel := context.WithTimeout(ctx, 5*time.Second)
+	err = mqttSubscriber.Connect(connectCtx)
+	connectCancel()
+	if err != nil {
 		slog.Warn("mqtt connection failed (continuing without mqtt)", "error", err)
-		return err
+		// Continue so HTTP server and /healthz still work when MQTT is unavailable (e.g. E2E).
 	}
 
 	srv := httpapi.NewServer(cfg, mux)
