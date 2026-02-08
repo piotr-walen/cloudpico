@@ -54,11 +54,11 @@ func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error 
 			// env.Humidity is a humidity level measurement stored as an int32 fixed
 			// point integer at a precision of 0.00001%rH.
 			// Valid values are between 0% and 100%.
-			humidity := float64(env.Humidity) / 100000.0 // convert to %
+			humidity := float64(env.Humidity) / 100_000.0 // convert to %
 
 			// env.Pressure is a measurement of force applied to a surface per unit
 			// area (stress) stored as an int64 nano Pascal.
-			pressure := float64(env.Pressure) / 10000000.0 // convert to hPa
+			pressure := float64(env.Pressure) / 100_000_000_000.0 // convert to hPa
 
 			sequence++
 
