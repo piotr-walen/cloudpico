@@ -18,6 +18,7 @@ type Config struct {
 
 	BME280Address      uint16
 	SensorPollInterval time.Duration
+	DeviceStationID    string
 }
 
 func LoadFromEnv() (Config, error) {
@@ -80,6 +81,11 @@ func LoadFromEnv() (Config, error) {
 		return Config{}, fmt.Errorf("SENSOR_POLL_INTERVAL must be positive, got %v", sensorPollInterval)
 	}
 
+	deviceStationID := strings.TrimSpace(os.Getenv("DEVICE_STATION_ID"))
+	if deviceStationID == "" {
+		deviceStationID = "home"
+	}
+
 	return Config{
 		AppEnv:             appEnv,
 		LogLevel:           level,
@@ -88,6 +94,7 @@ func LoadFromEnv() (Config, error) {
 		MQTTClientID:       mqttClientID,
 		BME280Address:      uint16(bme280Address),
 		SensorPollInterval: sensorPollInterval,
+		DeviceStationID:    deviceStationID,
 	}, nil
 }
 

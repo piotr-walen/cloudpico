@@ -62,7 +62,7 @@ func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error 
 			sequence++
 
 			telemetry := cloudpico_shared.Telemetry{
-				StationID:   "home",
+				StationID:   cfg.DeviceStationID,
 				Timestamp:   time.Now(),
 				Temperature: &temperature,
 				Humidity:    &humidity,

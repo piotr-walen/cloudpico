@@ -75,6 +75,11 @@ func (s *Subscriber) messageCallback(_ mqtt.Client, msg mqtt.Message) {
 	if s == nil || msg == nil || s.messageHandler == nil {
 		return
 	}
+	defer func() {
+		if err := recover(); err != nil {
+			slog.Error("mqtt message handler panic", "error", err, "topic", msg.Topic())
+		}
+	}()
 	_ = s.messageHandler(msg)
 }
 
