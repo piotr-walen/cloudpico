@@ -115,9 +115,11 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 			}
 		}
 
-		// Local name filter (optional)
-		if l.opts.Filter.LocalName != "" && obs.LocalName != l.opts.Filter.LocalName {
-			if l.opts.Debug && obs.LocalName != "" {
+		// Local name filter (optional). Only reject when the device advertised a name that doesn't match.
+		// If the device sends no name (e.g. some Pico 2 W firmware only sends manufacturer data), we still
+		// allow matching by CompanyID + ManufacturerDataPref below.
+		if l.opts.Filter.LocalName != "" && obs.LocalName != "" && obs.LocalName != l.opts.Filter.LocalName {
+			if l.opts.Debug {
 				l.log.Debug("ble: local name filter failed",
 					"addr", obs.Address,
 					"name", obs.LocalName,
