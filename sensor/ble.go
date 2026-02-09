@@ -19,11 +19,21 @@ const (
 	blePayloadMinLen = 18
 )
 
-var adapter = bluetooth.DefaultAdapter
-
 type SendAdvertisementsOptions struct {
 	Interval time.Duration
 	Duration time.Duration
+}
+
+type BLE struct {
+	adapter *bluetooth.Adapter
+}
+
+func NewBLE() (BLE, error) {
+	adapter := bluetooth.DefaultAdapter
+	if err := adapter.Enable(); err != nil {
+		return BLE{}, err
+	}
+	return BLE{adapter: adapter}, nil
 }
 
 // EncodeReadingPayload builds the manufacturer data payload: magic (2) + reading_id (4) + T/P/H (12).
@@ -39,7 +49,7 @@ func EncodeReadingPayload(reading Reading) ([]byte, uint32) {
 	return buf, id
 }
 
-func SendAdvertisements(sensorReading Reading, options SendAdvertisementsOptions) error {
+func (b *BLE) Send(sensorReading Reading, options SendAdvertisementsOptions) error {
 	if options.Interval == 0 {
 		options.Interval = 100 * time.Millisecond
 	}
@@ -47,17 +57,10 @@ func SendAdvertisements(sensorReading Reading, options SendAdvertisementsOptions
 		options.Duration = 10 * time.Second
 	}
 
-	fmt.Println("ble: enabling adapter...")
-	if err := adapter.Enable(); err != nil {
-		fmt.Println("FATAL: adapter.Enable failed:", err)
-		return err
-	}
-	fmt.Println("ble: adapter enabled")
-
 	payload, id := EncodeReadingPayload(sensorReading)
 	fmt.Printf("ble: payload id=%d T=%.2f P=%.2f H=%.2f\r\n", id, sensorReading.Temperature, sensorReading.Pressure, sensorReading.Humidity)
 
-	adv := adapter.DefaultAdvertisement()
+	adv := b.adapter.DefaultAdvertisement()
 	fmt.Println("ble: configuring advertisement...")
 	if err := adv.Configure(bluetooth.AdvertisementOptions{
 		AdvertisementType: bluetooth.AdvertisingTypeNonConnInd,

@@ -20,11 +20,23 @@ func main() {
 	ticker := time.NewTicker(60 * time.Second)
 	defer ticker.Stop()
 
+	ble, err := NewBLE()
+	if err != nil {
+		fmt.Printf("ERROR: BLE initialization failed: %v\r\n", err)
+		return
+	}
+
+	sensor, err := NewSensor()
+	if err != nil {
+		fmt.Printf("ERROR: sensor initialization failed: %v\r\n", err)
+		return
+	}
+
 	for {
 		<-ticker.C
 
 		// Read sensor values
-		reading, err := ReadSensorValues()
+		reading, err := sensor.Read()
 		if err != nil {
 			fmt.Printf("ERROR: sensor read failed: %v\r\n", err)
 			continue
@@ -34,7 +46,7 @@ func main() {
 		fmt.Printf("T: %.2f C  P: %.2f hPa  H: %.2f %%\r\n", reading.Temperature, reading.Pressure, reading.Humidity)
 
 		// Update BLE advertisement with new sensor data
-		if err := SendAdvertisements(reading, SendAdvertisementsOptions{}); err != nil {
+		if err := ble.Send(reading, SendAdvertisementsOptions{}); err != nil {
 			fmt.Printf("ERROR: BLE advertisement update failed: %v\r\n", err)
 			continue
 		}

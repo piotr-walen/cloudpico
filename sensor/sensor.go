@@ -18,7 +18,11 @@ type Reading struct {
 	Humidity    float32
 }
 
-func ReadSensorValues() (Reading, error) {
+type Sensor struct {
+	device *bme280.Device
+}
+
+func NewSensor() (Sensor, error) {
 	i2c := machine.I2C0
 	if err := i2c.Configure(machine.I2CConfig{
 		SDA:       machine.GP0,
@@ -35,9 +39,16 @@ func ReadSensorValues() (Reading, error) {
 	sensor.Configure()
 	fmt.Printf("BME280 init OK\r\n")
 
-	t, errT := sensor.ReadTemperature()
-	p, errP := sensor.ReadPressure()
-	h, errH := sensor.ReadHumidity()
+	return Sensor{
+		device: &sensor,
+	}, nil
+}
+
+func (s *Sensor) Read() (Reading, error) {
+
+	t, errT := s.device.ReadTemperature()
+	p, errP := s.device.ReadPressure()
+	h, errH := s.device.ReadHumidity()
 
 	if errT != nil || errP != nil || errH != nil {
 		fmt.Printf("read error: T=%v P=%v H=%v\r\n", errT, errP, errH)
