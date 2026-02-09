@@ -38,7 +38,6 @@ func Run(ctx context.Context, cfg config.Config) error {
 			CompanyID:            0xFFFF,
 			ManufacturerDataPref: []byte{0x01, 0xD0},
 		},
-		Debug: true, // Enable debug to see all scanned devices
 	}, slog.Default())
 
 	go func() {
