@@ -66,3 +66,10 @@ tinygo monitor -port /dev/ttyACM0
 ```
 
 If you see multiple `ttyACM` devices, pick the one that appears when you attach the Pico.
+
+---
+
+### BLE not visible on the gateway
+
+- **Target**: You must build with `-target=pico2-w` (the **W** is required for the wireless/BLE chip). Using `pico2` or `rp2040` will not enable BLE.
+- The firmware advertises **continuously** (name `pico2w-done`, company ID `0xFFFF`, manufacturer data prefix `01 D0`) so the Pi scanner can see it. If you still don’t see the Pico, check serial output for `FATAL` or `adv.Start failed` and that the Pi is running the gateway with BLE debug enabled.

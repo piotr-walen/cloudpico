@@ -1,4 +1,7 @@
-// pico2w_adv_loop_serial_fmt/main.go
+// BLE beacon for Pico 2 W. Advertises continuously so the gateway can discover it.
+//
+// Build and flash (use pico2-w for the wireless board):
+//   tinygo flash -target=pico2-w .
 package main
 
 import (
@@ -20,7 +23,7 @@ func main() {
 	// Give the host time to enumerate the USB serial device.
 	time.Sleep(1500 * time.Millisecond)
 
-	fmt.Println("boot: pico2w ble adv loop (fmt logs)")
+	fmt.Println("boot: pico2w BLE beacon (continuous adv)")
 
 	fmt.Println("ble: enabling adapter...")
 	if err := adapter.Enable(); err != nil {
@@ -33,14 +36,15 @@ func main() {
 
 	adv := adapter.DefaultAdvertisement()
 
-	// Configure once initially.
+	// Configure once; fixed payload so we don't re-Configure (can be flaky on some stacks).
+	payload := []byte{0x01, 0xD0, 0x00, 0x00}
 	fmt.Println("ble: configuring advertisement...")
 	if err := adv.Configure(bluetooth.AdvertisementOptions{
 		AdvertisementType: bluetooth.AdvertisingTypeNonConnInd,
 		LocalName:         "pico2w-done",
 		Interval:          bluetooth.NewDuration(100 * time.Millisecond),
 		ManufacturerData: []bluetooth.ManufacturerDataElement{
-			{CompanyID: 0xFFFF, Data: []byte{0x01, 0xD0, 0x00, 0x00}},
+			{CompanyID: 0xFFFF, Data: payload},
 		},
 	}); err != nil {
 		fmt.Println("FATAL: adv.Configure failed:", err)
@@ -50,44 +54,20 @@ func main() {
 	}
 	fmt.Println("ble: advertisement configured")
 
-	var seq byte = 0
+	fmt.Println("ble: adv start (continuous)")
+	if err := adv.Start(); err != nil {
+		fmt.Println("FATAL: adv.Start failed:", err)
+		for {
+			time.Sleep(1 * time.Second)
+		}
+	}
+	fmt.Println("ble: advertising; gateway should see 'pico2w-done'")
 
+	// Keep running and print every 5s so serial shows we're alive.
+	tick := time.NewTicker(5 * time.Second)
+	defer tick.Stop()
 	for {
-		seq++
-		payload := []byte{0x01, 0xD0, seq, 0x00}
-		fmt.Printf("loop: seq=%d payload=% X\n", seq, payload)
-
-		// Re-configure each cycle so the payload changes.
-		// If this proves flaky on your setup, we can instead keep a fixed payload.
-		if err := adv.Configure(bluetooth.AdvertisementOptions{
-			AdvertisementType: bluetooth.AdvertisingTypeNonConnInd,
-			LocalName:         "pico2w-done",
-			Interval:          bluetooth.NewDuration(100 * time.Millisecond),
-			ManufacturerData: []bluetooth.ManufacturerDataElement{
-				{CompanyID: 0xFFFF, Data: payload},
-			},
-		}); err != nil {
-			fmt.Println("WARN: re-Configure failed (continuing with previous config):", err)
-		}
-
-		fmt.Println("ble: adv start")
-		if err := adv.Start(); err != nil {
-			fmt.Println("ERROR: adv.Start failed:", err)
-			fmt.Println("sleep: 2s then retry")
-			time.Sleep(2 * time.Second)
-			continue
-		}
-
-		// Burst advertise: ~6 packets at 100ms interval.
-		time.Sleep(600 * time.Millisecond)
-
-		if err := adv.Stop(); err != nil {
-			fmt.Println("WARN: adv.Stop failed:", err)
-		} else {
-			fmt.Println("ble: adv stop")
-		}
-
-		fmt.Println("sleep: 2s")
-		time.Sleep(2 * time.Second)
+		<-tick.C
+		fmt.Println("ble: still advertising...")
 	}
 }
