@@ -34,7 +34,7 @@ func Run(ctx context.Context, cfg config.Config) error {
 	bleListener := ble.NewListener(ble.Options{
 		Adapter: "hci0",
 		Filter: ble.Filter{
-			LocalName:            "pico2w-done", // set "" to ignore name
+			LocalName:            "", // pico2w does not send a name
 			CompanyID:            0xFFFF,
 			ManufacturerDataPref: []byte{0x01, 0xD0},
 		},
