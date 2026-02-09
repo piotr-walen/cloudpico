@@ -86,12 +86,33 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 			SeenAt:    time.Now(),
 		}
 
+		// Collect manufacturer data for debug logging
+		var allMfgData []struct {
+			CompanyID uint16
+			Data      []byte
+		}
+		for _, md := range r.ManufacturerData() {
+			allMfgData = append(allMfgData, struct {
+				CompanyID uint16
+				Data      []byte
+			}{md.CompanyID, append([]byte(nil), md.Data...)})
+		}
+
 		if l.opts.Debug {
 			l.log.Debug("ble: seen",
 				"addr", obs.Address,
 				"rssi", obs.RSSI,
 				"name", obs.LocalName,
+				"mfg_data_count", len(allMfgData),
 			)
+			for i, md := range allMfgData {
+				l.log.Debug("ble: manufacturer data",
+					"addr", obs.Address,
+					"index", i,
+					"company_id", fmt.Sprintf("0x%04X", md.CompanyID),
+					"data", fmt.Sprintf("% X", md.Data),
+				)
+			}
 		}
 
 		// Local name filter (optional)
@@ -99,6 +120,15 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 			return
 		}
 
+		// If LocalName matches but no ManufacturerData filter is set, match immediately
+		if len(l.opts.Filter.ManufacturerDataPref) == 0 && l.opts.Filter.CompanyID == 0 {
+			if onMatch != nil {
+				onMatch(obs)
+			}
+			return
+		}
+
+		// Check ManufacturerData
 		for _, md := range r.ManufacturerData() {
 			// CompanyID filter (optional if 0)
 			if l.opts.Filter.CompanyID != 0 && md.CompanyID != l.opts.Filter.CompanyID {
@@ -116,6 +146,16 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 				onMatch(obs)
 			}
 			return
+		}
+
+		// If we get here, LocalName matched but ManufacturerData didn't
+		if l.opts.Debug {
+			l.log.Debug("ble: local name matched but manufacturer data filter failed",
+				"addr", obs.Address,
+				"name", obs.LocalName,
+				"expected_company", fmt.Sprintf("0x%04X", l.opts.Filter.CompanyID),
+				"expected_prefix", fmt.Sprintf("% X", l.opts.Filter.ManufacturerDataPref),
+			)
 		}
 	})
 
