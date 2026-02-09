@@ -1,73 +1,43 @@
 // BLE beacon for Pico 2 W. Advertises continuously so the gateway can discover it.
+// Also reads BME280 over I2C and prints T/P/H to serial.
 //
 // Build and flash (use pico2-w for the wireless board):
-//   tinygo flash -target=pico2-w .
+//
+//	tinygo flash -target=pico2-w .
 package main
 
 import (
 	"fmt"
 	"machine"
 	"time"
-
-	"tinygo.org/x/bluetooth"
-)
-
-var (
-	adapter = bluetooth.DefaultAdapter
 )
 
 func main() {
-	// USB CDC serial
 	machine.Serial.Configure(machine.UARTConfig{})
-
-	// Give the host time to enumerate the USB serial device.
 	time.Sleep(1500 * time.Millisecond)
+	fmt.Println("boot: pico2w BLE beacon + BME280 sensor")
 
-	fmt.Println("boot: pico2w BLE beacon (continuous adv)")
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
 
-	fmt.Println("ble: enabling adapter...")
-	if err := adapter.Enable(); err != nil {
-		fmt.Println("FATAL: adapter.Enable failed:", err)
-		for {
-			time.Sleep(1 * time.Second)
-		}
-	}
-	fmt.Println("ble: adapter enabled")
-
-	adv := adapter.DefaultAdvertisement()
-
-	// Configure once; fixed payload so we don't re-Configure (can be flaky on some stacks).
-	payload := []byte{0x01, 0xD0, 0x00, 0x00}
-	fmt.Println("ble: configuring advertisement...")
-	if err := adv.Configure(bluetooth.AdvertisementOptions{
-		AdvertisementType: bluetooth.AdvertisingTypeNonConnInd,
-		LocalName:         "pico2w-done",
-		Interval:          bluetooth.NewDuration(100 * time.Millisecond),
-		ManufacturerData: []bluetooth.ManufacturerDataElement{
-			{CompanyID: 0xFFFF, Data: payload},
-		},
-	}); err != nil {
-		fmt.Println("FATAL: adv.Configure failed:", err)
-		for {
-			time.Sleep(1 * time.Second)
-		}
-	}
-	fmt.Println("ble: advertisement configured")
-
-	fmt.Println("ble: adv start (continuous)")
-	if err := adv.Start(); err != nil {
-		fmt.Println("FATAL: adv.Start failed:", err)
-		for {
-			time.Sleep(1 * time.Second)
-		}
-	}
-	fmt.Println("ble: advertising; gateway should see 'pico2w-done'")
-
-	// Keep running and print every 5s so serial shows we're alive.
-	tick := time.NewTicker(5 * time.Second)
-	defer tick.Stop()
 	for {
-		<-tick.C
-		fmt.Println("ble: still advertising...")
+		<-ticker.C
+
+		// Read sensor values
+		reading, err := ReadSensorValues()
+		if err != nil {
+			fmt.Printf("ERROR: sensor read failed: %v\r\n", err)
+			continue
+		}
+
+		// Print sensor values
+		fmt.Printf("T: %.2f C  P: %.2f hPa  H: %.2f %%\r\n", reading.Temperature, reading.Pressure, reading.Humidity)
+
+		// Update BLE advertisement with new sensor data
+		if err := SendAdvertisements(reading, SendAdvertisementsOptions{}); err != nil {
+			fmt.Printf("ERROR: BLE advertisement update failed: %v\r\n", err)
+			continue
+		}
+		fmt.Println("ble: advertisement updated with new sensor data")
 	}
 }

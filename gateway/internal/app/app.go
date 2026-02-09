@@ -4,7 +4,7 @@ import (
 	"cloudpico-gateway/internal/ble"
 	"cloudpico-gateway/internal/config"
 	"cloudpico-gateway/internal/mqtt"
-	"cloudpico-gateway/internal/utils"
+	"cloudpico-gateway/internal/sensor"
 	"context"
 	"log/slog"
 )
@@ -28,36 +28,26 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 
-	slog.Info("gateway started (no mqtt publishing yet), starting BLE listener")
-
-	// Start BLE listener (no MQTT publish yet)
 	bleListener := ble.NewListener(ble.Options{
 		Adapter: "hci0",
 		Filter: ble.Filter{
-			LocalName:            "", // pico2w does not send a name
+			LocalName:            "",
 			CompanyID:            0xFFFF,
 			ManufacturerDataPref: []byte{0x01, 0xD0},
 		},
 	}, slog.Default())
 
+	bleHandler := ble.NewBLESensorHandler(mqttClient)
+	bleHandler.StartListener(ctx, bleListener)
+
 	go func() {
-		err := bleListener.Run(ctx, func(m ble.Match) {
-			// For now: just log. No MQTT.
-			slog.Info("ble: DONE beacon received",
-				"addr", m.Address,
-				"rssi", m.RSSI,
-				"name", m.LocalName,
-				"company", slog.StringValue("0x"+utils.Hex4(m.CompanyID)),
-				"data", utils.BytesToHex(m.Data),
-			)
-		})
+		err := sensor.Run(ctx, cfg, mqttClient)
 		if err != nil {
-			slog.Warn("ble listener could not be initialized; gateway continues without BLE",
+			slog.Warn("internal sensor could not be initialized; gateway continues without sensor",
 				"error", err,
 			)
 		}
 	}()
-
 	// Wait for context cancellation (shutdown signal)
 	<-ctx.Done()
 
