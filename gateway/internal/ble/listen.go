@@ -117,6 +117,13 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 
 		// Local name filter (optional)
 		if l.opts.Filter.LocalName != "" && obs.LocalName != l.opts.Filter.LocalName {
+			if l.opts.Debug && obs.LocalName != "" {
+				l.log.Debug("ble: local name filter failed",
+					"addr", obs.Address,
+					"name", obs.LocalName,
+					"expected", l.opts.Filter.LocalName,
+				)
+			}
 			return
 		}
 
@@ -129,30 +136,67 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 		}
 
 		// Check ManufacturerData
+		matched := false
 		for _, md := range r.ManufacturerData() {
+			if l.opts.Debug && l.opts.Filter.LocalName != "" && obs.LocalName == l.opts.Filter.LocalName {
+				l.log.Debug("ble: checking manufacturer data filter",
+					"addr", obs.Address,
+					"name", obs.LocalName,
+					"mfg_company", fmt.Sprintf("0x%04X", md.CompanyID),
+					"mfg_data", fmt.Sprintf("% X", md.Data),
+					"expected_company", fmt.Sprintf("0x%04X", l.opts.Filter.CompanyID),
+					"expected_prefix", fmt.Sprintf("% X", l.opts.Filter.ManufacturerDataPref),
+				)
+			}
+
 			// CompanyID filter (optional if 0)
 			if l.opts.Filter.CompanyID != 0 && md.CompanyID != l.opts.Filter.CompanyID {
+				if l.opts.Debug && l.opts.Filter.LocalName != "" && obs.LocalName == l.opts.Filter.LocalName {
+					l.log.Debug("ble: company ID mismatch",
+						"addr", obs.Address,
+						"got", fmt.Sprintf("0x%04X", md.CompanyID),
+						"expected", fmt.Sprintf("0x%04X", l.opts.Filter.CompanyID),
+					)
+				}
 				continue
 			}
 			// Prefix filter (optional)
 			if !hasPrefix(md.Data, l.opts.Filter.ManufacturerDataPref) {
+				if l.opts.Debug && l.opts.Filter.LocalName != "" && obs.LocalName == l.opts.Filter.LocalName {
+					l.log.Debug("ble: prefix mismatch",
+						"addr", obs.Address,
+						"got", fmt.Sprintf("% X", md.Data),
+						"expected_prefix", fmt.Sprintf("% X", l.opts.Filter.ManufacturerDataPref),
+					)
+				}
 				continue
 			}
 
 			obs.CompanyID = md.CompanyID
 			obs.Data = append([]byte(nil), md.Data...) // copy
 
+			if l.opts.Debug {
+				l.log.Debug("ble: MATCH!",
+					"addr", obs.Address,
+					"name", obs.LocalName,
+					"company", fmt.Sprintf("0x%04X", obs.CompanyID),
+					"data", fmt.Sprintf("% X", obs.Data),
+				)
+			}
+
 			if onMatch != nil {
 				onMatch(obs)
 			}
+			matched = true
 			return
 		}
 
 		// If we get here, LocalName matched but ManufacturerData didn't
-		if l.opts.Debug {
+		if l.opts.Debug && l.opts.Filter.LocalName != "" && obs.LocalName == l.opts.Filter.LocalName && !matched {
 			l.log.Debug("ble: local name matched but manufacturer data filter failed",
 				"addr", obs.Address,
 				"name", obs.LocalName,
+				"mfg_data_count", len(allMfgData),
 				"expected_company", fmt.Sprintf("0x%04X", l.opts.Filter.CompanyID),
 				"expected_prefix", fmt.Sprintf("% X", l.opts.Filter.ManufacturerDataPref),
 			)
