@@ -1,3 +1,4 @@
+// pico2w_adv_loop_serial_fmt/main.go
 package main
 
 import (
@@ -5,48 +6,88 @@ import (
 	"machine"
 	"time"
 
-	"tinygo.org/x/drivers/bme280"
+	"tinygo.org/x/bluetooth"
+)
+
+var (
+	adapter = bluetooth.DefaultAdapter
 )
 
 func main() {
-	// USB serial
+	// USB CDC serial
 	machine.Serial.Configure(machine.UARTConfig{})
 
-	// I2C0 on GP0/GP1
-	i2c := machine.I2C0
-	if err := i2c.Configure(machine.I2CConfig{
-		SDA:       machine.GP0,
-		SCL:       machine.GP1,
-		Frequency: 400 * machine.KHz,
-	}); err != nil {
-		fmt.Printf("I2C configure error: %v\r\n", err)
+	// Give the host time to enumerate the USB serial device.
+	time.Sleep(1500 * time.Millisecond)
+
+	fmt.Println("boot: pico2w ble adv loop (fmt logs)")
+
+	fmt.Println("ble: enabling adapter...")
+	if err := adapter.Enable(); err != nil {
+		fmt.Println("FATAL: adapter.Enable failed:", err)
 		for {
-			time.Sleep(time.Second)
+			time.Sleep(1 * time.Second)
 		}
 	}
+	fmt.Println("ble: adapter enabled")
 
-	sensor := bme280.New(i2c)
+	adv := adapter.DefaultAdvertisement()
 
-	sensor.Configure()
-	fmt.Printf("BME280 init OK\r\n")
+	// Configure once initially.
+	fmt.Println("ble: configuring advertisement...")
+	if err := adv.Configure(bluetooth.AdvertisementOptions{
+		AdvertisementType: bluetooth.AdvertisingTypeNonConnInd,
+		LocalName:         "pico2w-done",
+		Interval:          bluetooth.NewDuration(100 * time.Millisecond),
+		ManufacturerData: []bluetooth.ManufacturerDataElement{
+			{CompanyID: 0xFFFF, Data: []byte{0x01, 0xD0, 0x00, 0x00}},
+		},
+	}); err != nil {
+		fmt.Println("FATAL: adv.Configure failed:", err)
+		for {
+			time.Sleep(1 * time.Second)
+		}
+	}
+	fmt.Println("ble: advertisement configured")
+
+	var seq byte = 0
 
 	for {
-		t, errT := sensor.ReadTemperature()
-		p, errP := sensor.ReadPressure()
-		h, errH := sensor.ReadHumidity()
+		seq++
+		payload := []byte{0x01, 0xD0, seq, 0x00}
+		fmt.Printf("loop: seq=%d payload=% X\n", seq, payload)
 
-		if errT != nil || errP != nil || errH != nil {
-			fmt.Printf("read error: T=%v P=%v H=%v\r\n", errT, errP, errH)
-		} else {
-			// Driver units:
-			// t = milli-°C, p = milli-Pa, h = hundredths of %RH
-			tempC := float32(t) / 1000.0
-			pressHPa := float32(p) / 100000.0
-			humPct := float32(h) / 100.0
-
-			fmt.Printf("T: %.2f C  P: %.2f hPa  H: %.2f %%\r\n", tempC, pressHPa, humPct)
+		// Re-configure each cycle so the payload changes.
+		// If this proves flaky on your setup, we can instead keep a fixed payload.
+		if err := adv.Configure(bluetooth.AdvertisementOptions{
+			AdvertisementType: bluetooth.AdvertisingTypeNonConnInd,
+			LocalName:         "pico2w-done",
+			Interval:          bluetooth.NewDuration(100 * time.Millisecond),
+			ManufacturerData: []bluetooth.ManufacturerDataElement{
+				{CompanyID: 0xFFFF, Data: payload},
+			},
+		}); err != nil {
+			fmt.Println("WARN: re-Configure failed (continuing with previous config):", err)
 		}
 
+		fmt.Println("ble: adv start")
+		if err := adv.Start(); err != nil {
+			fmt.Println("ERROR: adv.Start failed:", err)
+			fmt.Println("sleep: 2s then retry")
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		// Burst advertise: ~6 packets at 100ms interval.
+		time.Sleep(600 * time.Millisecond)
+
+		if err := adv.Stop(); err != nil {
+			fmt.Println("WARN: adv.Stop failed:", err)
+		} else {
+			fmt.Println("ble: adv stop")
+		}
+
+		fmt.Println("sleep: 2s")
 		time.Sleep(2 * time.Second)
 	}
 }
