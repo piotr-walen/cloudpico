@@ -24,52 +24,25 @@ Install **TinyGo**:
 
 1. Put the board into **BOOTSEL** mode (it should appear as a USB drive in Windows).
 
+2. Flash using tinygo flash 
+
+```bash
+tinygo flash -target=pico2-w .
+```
+
+OR
 2. Build the UF2 binary:
 
 ```bash
 tinygo build -target=pico2-w -o main.uf2 .
 ```
 
-3. Mount the Pico drive inside WSL (replace `<pico_drive_letter>` with the Windows drive letter, e.g. `E`):
-
-```bash
-sudo mkdir -p /mnt/<pico_drive_letter>
-sudo mount -t drvfs <pico_drive_letter>: /mnt/<pico_drive_letter> \
-  -o uid=$(id -u),gid=$(id -g),metadata
-```
-
-4. Copy the UF2 to the mounted drive:
-
 ```bash
 cp main.uf2 /mnt/<pico_drive_letter>/
 ```
 
-After the copy finishes, the Pico should reboot automatically (typical UF2 behavior).
-
----
-
-### Serial Monitoring
-
-1. In **Administrator PowerShell**, attach the Pico to WSL:
-
-```powershell
-usbipd list
-usbipd bind --busid <BUSID>          # admin once
-usbipd attach --wsl --busid <BUSID>  # run each session
-```
-
-2. In WSL, find the serial device and start monitoring:
+### Serial monitoring
 
 ```bash
-ls -l /dev/ttyACM* 2>/dev/null
-tinygo monitor -port /dev/ttyACM0
+tinygo monitor
 ```
-
-If you see multiple `ttyACM` devices, pick the one that appears when you attach the Pico.
-
----
-
-### BLE not visible on the gateway
-
-- **Target**: You must build with `-target=pico2-w` (the **W** is required for the wireless/BLE chip). Using `pico2` or `rp2040` will not enable BLE.
-- The firmware advertises **continuously** (name `pico2w-done`, company ID `0xFFFF`, manufacturer data prefix `01 D0`) so the Pi scanner can see it. If you still don’t see the Pico, check serial output for `FATAL` or `adv.Start failed` and that the Pi is running the gateway with BLE debug enabled.

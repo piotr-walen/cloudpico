@@ -31,10 +31,9 @@ type StationHealth struct {
 	Healthy   bool      `json:"healthy"`
 }
 
-func NewClient(cfg config.Config, logger *slog.Logger) (*Client, error) {
+func NewClient(cfg config.Config) (*Client, error) {
 	c := &Client{
 		cfg:    cfg,
-		logger: logger,
 		stopCh: make(chan struct{}),
 	}
 
@@ -57,12 +56,12 @@ func NewClient(cfg config.Config, logger *slog.Logger) (*Client, error) {
 	// Callbacks keep internal state accurate
 	opts.SetOnConnectHandler(func(_ mqtt.Client) {
 		c.setConnected(true)
-		logger.Info("mqtt connected", "broker", cfg.MQTTBroker, "port", cfg.MQTTPort)
+		slog.Info("mqtt connected", "broker", cfg.MQTTBroker, "port", cfg.MQTTPort)
 	})
 
 	opts.SetConnectionLostHandler(func(_ mqtt.Client, err error) {
 		c.setConnected(false)
-		logger.Warn("mqtt connection lost", "error", err)
+		slog.Warn("mqtt connection lost", "error", err)
 	})
 
 	c.client = mqtt.NewClient(opts)
