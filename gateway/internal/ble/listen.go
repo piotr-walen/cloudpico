@@ -32,39 +32,34 @@ type Options struct {
 
 // Listener wraps BlueZ scanning with context cancellation.
 type Listener struct {
-	adapter bluetooth.Adapter
+	adapter *bluetooth.Adapter
 	opts    Options
-	log     *slog.Logger
 }
 
-func NewListener(opts Options, log *slog.Logger) *Listener {
+func NewListener(opts Options) *Listener {
 	if opts.Adapter == "" {
 		opts.Adapter = "hci0"
 	}
-	if log == nil {
-		log = slog.Default()
-	}
 
 	return &Listener{
-		adapter: *bluetooth.NewAdapter(opts.Adapter),
+		adapter: bluetooth.NewAdapter(opts.Adapter),
 		opts:    opts,
-		log:     log,
 	}
 }
 
 func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
-	l.log.Info("ble: enabling adapter", "adapter", l.opts.Adapter)
+	slog.Info("ble: enabling adapter", "adapter", l.opts.Adapter)
 	if err := l.adapter.Enable(); err != nil {
 		return fmt.Errorf("ble enable (%s): %w", l.opts.Adapter, err)
 	}
-	l.log.Info("ble: adapter enabled", "adapter", l.opts.Adapter)
+	slog.Info("ble: adapter enabled", "adapter", l.opts.Adapter)
 
 	go func() {
 		<-ctx.Done()
 		_ = l.adapter.StopScan()
 	}()
 
-	l.log.Info("ble: scanning started",
+	slog.Info("ble: scanning started",
 		"filter_name", l.opts.Filter.LocalName,
 		"filter_company", fmt.Sprintf("0x%04X", l.opts.Filter.CompanyID),
 		"filter_prefix", fmt.Sprintf("% X", l.opts.Filter.ManufacturerDataPref),
@@ -115,7 +110,7 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 
 	// If ctx canceled, treat as clean shutdown.
 	if ctx.Err() != nil {
-		l.log.Info("ble: scanning stopped (context canceled)")
+		slog.Info("ble: scanning stopped (context canceled)")
 		return nil
 	}
 
@@ -123,7 +118,7 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 		return fmt.Errorf("ble scan: %w", err)
 	}
 
-	l.log.Info("ble: scanning stopped")
+	slog.Info("ble: scanning stopped")
 	return nil
 }
 

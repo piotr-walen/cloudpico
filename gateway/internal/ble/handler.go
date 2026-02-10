@@ -3,7 +3,6 @@ package ble
 import (
 	"cloudpico-gateway/internal/mqtt"
 	"cloudpico-gateway/internal/utils"
-	"context"
 	"log/slog"
 	"sync"
 	"time"
@@ -75,16 +74,4 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 		"T", sr.Temperature, "P", sr.Pressure, "H", sr.Humidity,
 		"data", utils.BytesToHex(m.Data),
 	)
-}
-
-// StartListener starts the BLE listener with this handler.
-func (h *BLESensorHandler) StartListener(ctx context.Context, listener *Listener) {
-	go func() {
-		err := listener.Run(ctx, h.HandleMatch)
-		if err != nil {
-			slog.Warn("ble listener could not be initialized; gateway continues without BLE",
-				"error", err,
-			)
-		}
-	}()
 }
