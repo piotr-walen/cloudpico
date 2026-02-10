@@ -4,7 +4,7 @@ import (
 	"cloudpico-gateway/internal/config"
 	"cloudpico-gateway/internal/mqtt"
 	"context"
-	"log"
+	"fmt"
 	"time"
 
 	"periph.io/x/conn/v3/i2c/i2creg"
@@ -19,12 +19,12 @@ func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error 
 
 	sequence := 0
 	if _, err := host.Init(); err != nil {
-		log.Fatalf("host.Init: %v", err)
+		return fmt.Errorf("host.Init: %w", err)
 	}
 
 	bus, err := i2creg.Open("") // default bus, usually /dev/i2c-1
 	if err != nil {
-		log.Fatalf("i2creg.Open: %v", err)
+		return fmt.Errorf("i2creg.Open: %w", err)
 	}
 	defer bus.Close()
 
@@ -32,7 +32,7 @@ func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error 
 
 	dev, err := bmxx80.NewI2C(bus, addr, &bmxx80.DefaultOpts)
 	if err != nil {
-		log.Fatalf("bmxx80.NewI2C: %v", err)
+		return fmt.Errorf("bmxx80.NewI2C: %w", err)
 	}
 	defer dev.Halt()
 
@@ -46,7 +46,7 @@ func Run(ctx context.Context, cfg config.Config, mqttClient *mqtt.Client) error 
 		case <-ticker.C:
 			var env physic.Env
 			if err := dev.Sense(&env); err != nil {
-				log.Fatalf("Sense: %v", err)
+				return fmt.Errorf("Sense: %w", err)
 			}
 
 			temperature := env.Temperature.Celsius()

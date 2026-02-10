@@ -1,6 +1,7 @@
 package app
 
 import (
+	"cloudpico-gateway/internal/ble"
 	"cloudpico-gateway/internal/config"
 	"cloudpico-gateway/internal/mqtt"
 	"cloudpico-gateway/internal/sensor"
@@ -27,15 +28,26 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 
-	slog.Info("gateway started, ready to publish telemetry")
+	bleListener := ble.NewListener(ble.Options{
+		Adapter: "hci0",
+		Filter: ble.Filter{
+			LocalName:            "",
+			CompanyID:            0xFFFF,
+			ManufacturerDataPref: []byte{0x01, 0xD0},
+		},
+	}, slog.Default())
+
+	bleHandler := ble.NewBLESensorHandler(mqttClient)
+	bleHandler.StartListener(ctx, bleListener)
 
 	go func() {
-		err = sensor.Run(ctx, cfg, mqttClient)
+		err := sensor.Run(ctx, cfg, mqttClient)
 		if err != nil {
-			slog.Error("sensor run failed", "error", err)
+			slog.Warn("internal sensor could not be initialized; gateway continues without sensor",
+				"error", err,
+			)
 		}
 	}()
-
 	// Wait for context cancellation (shutdown signal)
 	<-ctx.Done()
 

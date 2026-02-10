@@ -1,52 +1,55 @@
+// BLE beacon for Pico 2 W. Advertises continuously so the gateway can discover it.
+// Also reads BME280 over I2C and prints T/P/H to serial.
+//
+// Build and flash (use pico2-w for the wireless board):
+//
+//	tinygo flash -target=pico2-w .
 package main
 
 import (
 	"fmt"
 	"machine"
 	"time"
-
-	"tinygo.org/x/drivers/bme280"
 )
 
 func main() {
-	// USB serial
 	machine.Serial.Configure(machine.UARTConfig{})
+	time.Sleep(1500 * time.Millisecond)
+	fmt.Println("boot: pico2w BLE beacon + BME280 sensor")
 
-	// I2C0 on GP0/GP1
-	i2c := machine.I2C0
-	if err := i2c.Configure(machine.I2CConfig{
-		SDA:       machine.GP0,
-		SCL:       machine.GP1,
-		Frequency: 400 * machine.KHz,
-	}); err != nil {
-		fmt.Printf("I2C configure error: %v\r\n", err)
-		for {
-			time.Sleep(time.Second)
-		}
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
+	ble, err := NewBLE()
+	if err != nil {
+		fmt.Printf("ERROR: BLE initialization failed: %v\r\n", err)
+		return
 	}
 
-	sensor := bme280.New(i2c)
-
-	sensor.Configure()
-	fmt.Printf("BME280 init OK\r\n")
+	sensor, err := NewSensor()
+	if err != nil {
+		fmt.Printf("ERROR: sensor initialization failed: %v\r\n", err)
+		return
+	}
 
 	for {
-		t, errT := sensor.ReadTemperature()
-		p, errP := sensor.ReadPressure()
-		h, errH := sensor.ReadHumidity()
+		<-ticker.C
 
-		if errT != nil || errP != nil || errH != nil {
-			fmt.Printf("read error: T=%v P=%v H=%v\r\n", errT, errP, errH)
-		} else {
-			// Driver units:
-			// t = milli-°C, p = milli-Pa, h = hundredths of %RH
-			tempC := float32(t) / 1000.0
-			pressHPa := float32(p) / 100000.0
-			humPct := float32(h) / 100.0
-
-			fmt.Printf("T: %.2f C  P: %.2f hPa  H: %.2f %%\r\n", tempC, pressHPa, humPct)
+		// Read sensor values
+		reading, err := sensor.Read()
+		if err != nil {
+			fmt.Printf("ERROR: sensor read failed: %v\r\n", err)
+			continue
 		}
 
-		time.Sleep(2 * time.Second)
+		// Print sensor values
+		fmt.Printf("T: %.2f C  P: %.2f hPa  H: %.2f %%\r\n", reading.Temperature, reading.Pressure, reading.Humidity)
+
+		// Update BLE advertisement with new sensor data
+		if err := ble.Send(reading, SendAdvertisementsOptions{}); err != nil {
+			fmt.Printf("ERROR: BLE advertisement update failed: %v\r\n", err)
+			continue
+		}
+		fmt.Println("ble: advertisement updated with new sensor data")
 	}
 }
