@@ -1,13 +1,13 @@
 # Cloudpico
 
-This project is a self-hosted weather station stack built around **battery-powered Raspberry Pi Pico 2** devices (firmware in **TinyGo**) that broadcast sensor telemetry using **BLE advertisements (connectionless)**. A Raspberry Pi 5 (or other Linux host) continuously scans for these advertisements, validates and parses payloads, republishes telemetry into **MQTT**, and a **Go backend** ingests readings into **SQLite** and exposes an **HTTP API**. The backend also serves a simple HTML web client for viewing current conditions and basic history.
+This project is a self-hosted weather station stack built around **battery-powered Raspberry Pi Pico 2** devices (firmware in **TinyGo**) that broadcast sensor telemetry using **BLE advertisements (connectionless)**. A linux host continuously scans for these advertisements, validates and parses payloads, republishes telemetry into **MQTT**, and a **Go backend** ingests readings into **SQLite** and exposes an **HTTP API**. The backend also serves a simple HTML web client for viewing current conditions and basic history.
 
 ## Architecture
 
-**Device (Raspberry Pi Pico 2 + TinyGo)**
+**Sensor (MCU w/ BLE)**
 Reads sensors at a fixed interval, encodes readings into a compact binary payload, and broadcasts them via **BLE advertising**. Devices never connect or pair; they wake → measure → advertise briefly → sleep.
 
-**Collector / Gateway (Raspberry Pi 5 / Linux host)**
+**Gateway / Linux host**
 Runs a BLE scanner that passively listens for station advertisements, deduplicates and validates messages (sequence numbers, timestamps, optional CRC), tracks per-station “last seen” state, and republishes decoded telemetry into MQTT topics.
 
 **MQTT Broker (Mosquitto)**
@@ -28,7 +28,7 @@ Subscribes to telemetry topics, validates and parses payloads, stores readings i
 
 1. Pico 2 wakes on interval and samples sensors (temperature, humidity, pressure, etc.).
 2. Pico 2 packs readings into a compact payload including **station_id + sequence number + battery + sensor values** and broadcasts it in **BLE advertisements** for a short window.
-3. Pi 5 passively scans BLE advertisements, filters by service/manufacturer data, validates payloads, updates station “last seen” and health state, and republishes telemetry to Mosquitto on a station-specific topic.
+3. Linux host passively scans BLE advertisements, filters by service/manufacturer data, validates payloads, updates station “last seen” and health state, and republishes telemetry to Mosquitto on a station-specific topic.
 4. Go server subscribes to telemetry topics and ingests messages.
 5. Readings are stored in SQLite for historical queries.
 6. Users open the web client (served directly by the Go server) which calls the API to render latest values and history.
