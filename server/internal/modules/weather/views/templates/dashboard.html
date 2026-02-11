@@ -11,7 +11,7 @@
       <p class="lead">Weather stations and readings.</p>
       {{ with . }}
       {{ range .Stations }}
-      <div class="current-conditions card" id="current-conditions">
+      <div id="current-conditions-{{ .StationID }}" class="current-conditions card">
         <h2 class="card-title">Current conditions</h2>
         <p class="station-name">{{ .StationName }}</p>
         {{ if .Reading }}

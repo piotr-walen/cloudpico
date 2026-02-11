@@ -87,7 +87,7 @@ func TestRenderDashboard_withData(t *testing.T) {
 
 	data := &DashboardData{
 		Stations: []StationReading{
-			{StationName: "Station One", Reading: &types.Reading{Value: 22.5, Time: time.Date(2025, 2, 3, 14, 30, 0, 0, time.UTC)}},
+			{StationID: "test-station-1", StationName: "Station One", Reading: &types.Reading{Value: 22.5, Time: time.Date(2025, 2, 3, 14, 30, 0, 0, time.UTC)}},
 		},
 	}
 

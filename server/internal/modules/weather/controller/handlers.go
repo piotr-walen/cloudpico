@@ -33,10 +33,10 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 			return
 		}
 		if len(latest) != 0 {
-			data.Stations = append(data.Stations, views.StationReading{StationName: s.Name, Reading: &latest[0]})
+			data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: &latest[0]})
 			continue
 		}
-		data.Stations = append(data.Stations, views.StationReading{StationName: s.Name, Reading: nil})
+		data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: nil})
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -62,7 +62,10 @@ func (c *weatherControllerImpl) handleHistory(w http.ResponseWriter, r *http.Req
 	if selectedID == "" && len(stations) > 0 {
 		selectedID = stations[0].ID
 	}
-	selectedRangeKey := state.RangeKey
+	selectedRangeKey := r.URL.Query().Get("range")
+	if selectedRangeKey == "" {
+		selectedRangeKey = state.RangeKey
+	}
 	if selectedRangeKey == "" {
 		selectedRangeKey = defaultHistoryRangeKey
 	}

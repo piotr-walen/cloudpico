@@ -57,6 +57,7 @@ func RenderHistory(w io.Writer, data *HistoryParams) error {
 }
 
 type StationReading struct {
+	StationID   string
 	StationName string
 	Reading     *types.Reading
 }

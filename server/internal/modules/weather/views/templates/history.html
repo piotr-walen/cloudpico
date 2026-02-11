@@ -15,9 +15,9 @@
           <select id="station-selector"
                   name="station_id"
                   class="station-selector"
-                  hx-get="/partials/current-conditions"
+                  hx-get="/partials/history"
                   hx-trigger="change"
-                  hx-target="#current-conditions-container"
+                  hx-target="#history-container"
                   hx-swap="innerHTML"
                   hx-include="this">
             {{ range .Stations }}
