@@ -3,6 +3,11 @@ module cloudpico-sensor
 go 1.25.6
 
 require (
+	tinygo.org/x/bluetooth v0.14.0
+	tinygo.org/x/drivers v0.34.0
+)
+
+require (
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -14,6 +19,4 @@ require (
 	github.com/tinygo-org/pio v0.2.0 // indirect
 	golang.org/x/exp v0.0.0-20241204233417-43b7b7cde48d // indirect
 	golang.org/x/sys v0.11.0 // indirect
-	tinygo.org/x/bluetooth v0.14.0 // indirect
-	tinygo.org/x/drivers v0.34.0 // indirect
 )

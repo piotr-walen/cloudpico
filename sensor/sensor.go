@@ -2,9 +2,7 @@
 package main
 
 import (
-	"fmt"
 	"machine"
-	"time"
 
 	"tinygo.org/x/drivers/bme280"
 )
@@ -23,21 +21,17 @@ type Sensor struct {
 }
 
 func NewSensor() (Sensor, error) {
-	i2c := machine.I2C0
+	i2c := machine.I2C1
 	if err := i2c.Configure(machine.I2CConfig{
-		SDA:       machine.GP0,
-		SCL:       machine.GP1,
+		SDA:       machine.GP14,
+		SCL:       machine.GP15,
 		Frequency: 400 * machine.KHz,
 	}); err != nil {
-		fmt.Printf("I2C configure error: %v\r\n", err)
-		for {
-			time.Sleep(time.Second)
-		}
+		return Sensor{}, err
 	}
 
 	sensor := bme280.New(i2c)
 	sensor.Configure()
-	fmt.Printf("BME280 init OK\r\n")
 
 	return Sensor{
 		device: &sensor,
@@ -47,17 +41,21 @@ func NewSensor() (Sensor, error) {
 func (s *Sensor) Read() (Reading, error) {
 
 	t, errT := s.device.ReadTemperature()
-	p, errP := s.device.ReadPressure()
-	h, errH := s.device.ReadHumidity()
-
-	if errT != nil || errP != nil || errH != nil {
-		fmt.Printf("read error: T=%v P=%v H=%v\r\n", errT, errP, errH)
-		return Reading{}, fmt.Errorf("read error: T=%v P=%v H=%v", errT, errP, errH)
+	if errT != nil {
+		return Reading{}, errT
 	}
+	p, errP := s.device.ReadPressure()
+	if errP != nil {
+		return Reading{}, errP
+	}
+	h, errH := s.device.ReadHumidity()
+	if errH != nil {
+		return Reading{}, errH
+	}
+
 	tempC := float32(t) / 1000.0
 	pressHPa := float32(p) / 100000.0
 	humPct := float32(h) / 100.0
-	fmt.Printf("T: %.2f C  P: %.2f hPa  H: %.2f %%\r\n", tempC, pressHPa, humPct)
 	return Reading{
 		Temperature: tempC,
 		Pressure:    pressHPa,

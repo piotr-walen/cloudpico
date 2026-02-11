@@ -17,7 +17,6 @@ import (
 type Client struct {
 	client    mqtt.Client
 	cfg       config.Config
-	logger    *slog.Logger
 	mu        sync.RWMutex
 	connected bool
 
@@ -131,11 +130,11 @@ func (c *Client) PublishTelemetry(telemetry cloudpico_shared.Telemetry) error {
 		return fmt.Errorf("publish timeout for topic %s", topic)
 	}
 	if token.Error() != nil {
-		c.logger.Error("failed to publish telemetry", "topic", topic, "error", token.Error())
+		slog.Error("failed to publish telemetry", "topic", topic, "error", token.Error())
 		return fmt.Errorf("publish telemetry: %w", token.Error())
 	}
 
-	c.logger.Debug("published telemetry", "topic", topic, "station_id", telemetry.StationID)
+	slog.Debug("published telemetry", "topic", topic, "station_id", telemetry.StationID)
 	return nil
 }
 
@@ -161,11 +160,11 @@ func (c *Client) PublishStationHealth(health StationHealth) error {
 		return fmt.Errorf("publish timeout for topic %s", topic)
 	}
 	if token.Error() != nil {
-		c.logger.Error("failed to publish station health", "topic", topic, "error", token.Error())
+		slog.Error("failed to publish station health", "topic", topic, "error", token.Error())
 		return fmt.Errorf("publish health: %w", token.Error())
 	}
 
-	c.logger.Debug("published station health",
+	slog.Debug("published station health",
 		"topic", topic,
 		"station_id", health.StationID,
 		"last_seen", health.LastSeen,
@@ -198,7 +197,7 @@ func (c *Client) Disconnect() {
 
 	// Update our internal state.
 	c.setConnected(false)
-	c.logger.Info("mqtt disconnected")
+	slog.Info("mqtt disconnected")
 }
 
 func (c *Client) setConnected(v bool) {

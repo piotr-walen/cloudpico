@@ -137,14 +137,18 @@ func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperatu
 		// It's a numeric ID, use it directly
 		dbStationID = parsedID
 	} else {
-		// It's likely a station name, look it up
+		// It's likely a station name, get or create it dynamically
+		// Execute INSERT OR IGNORE first, then SELECT to get the ID
+		_, err = r.db.Exec("INSERT OR IGNORE INTO stations (name, metadata) VALUES (?, '{}')", stationID)
+		if err != nil {
+			return fmt.Errorf("create station %q: %w", stationID, err)
+		}
+		// Now get the station ID (whether it was just created or already existed)
 		err = r.db.QueryRow(getStationIDByNameSQL, stationID).Scan(&dbStationID)
 		if err != nil {
-			if err == sql.ErrNoRows {
-				return fmt.Errorf("station not found: %q", stationID)
-			}
-			return fmt.Errorf("lookup station %q: %w", stationID, err)
+			return fmt.Errorf("get station ID for %q: %w", stationID, err)
 		}
+		slog.Debug("resolved station", "name", stationID, "id", dbStationID)
 	}
 	
 	// Validate humidity range (0-100) if provided
