@@ -1,11 +1,11 @@
 package views
 
 import (
+	"cloudpico-server/internal/modules/weather/types"
 	"errors"
 	"html/template"
 	"io"
 	"io/fs"
-	"time"
 )
 
 var dashboardTmpl *template.Template
@@ -36,39 +36,38 @@ type StationOption struct {
 	Name string
 }
 
-// DashboardData is the view model for the dashboard page.
-type DashboardData struct {
-	Stations          []StationOption
-	SelectedStationID string
-	SelectedRangeKey  string // e.g. "24h", for history range dropdown
-}
-
-// RenderDashboard executes the dashboard page (base layout + dashboard content) into w.
-func RenderDashboard(w io.Writer, data any) error {
+func RenderDashboard(w io.Writer, data *DashboardData) error {
 	if dashboardTmpl == nil {
 		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
 	}
-	return dashboardTmpl.ExecuteTemplate(w, "base.html", data)
+	return dashboardTmpl.ExecuteTemplate(w, "dashboard.html", data)
 }
 
-// CurrentConditionsData is the view model for the current-conditions partial.
-type CurrentConditionsData struct {
+type HistoryParams struct {
+	Stations          []StationOption
+	SelectedStationID string
+	SelectedRangeKey  string
+}
+
+func RenderHistory(w io.Writer, data *HistoryParams) error {
+	if dashboardTmpl == nil {
+		return errors.New("history template not loaded: call views.LoadTemplates during startup")
+	}
+	return dashboardTmpl.ExecuteTemplate(w, "history.html", data)
+}
+
+type StationReading struct {
 	StationName string
-	Reading     *ReadingPartial // nil when no recent reading
+	Reading     *types.Reading
 }
-
-// ReadingPartial exposes reading fields for the template (avoids importing types in views).
-type ReadingPartial struct {
-	Value       float64
-	Time        time.Time
-	HumidityPct float64
-	PressureHpa float64
+type DashboardData struct {
+	Stations []StationReading
 }
 
 // PaginationItem is one entry in the pagination bar: either a page number or an ellipsis.
 type PaginationItem struct {
-	Page     int  // page number (1-based); only valid when Ellipsis is false
-	Ellipsis bool // when true, render "..." instead of a link
+	Page     int
+	Ellipsis bool
 }
 
 // HistoryData is the view model for the history partial.
@@ -77,7 +76,7 @@ type HistoryData struct {
 	StationID   string // for pagination links
 	RangeLabel  string
 	RangeKey    string // for pagination links, e.g. "24h"
-	Readings    []ReadingPartial
+	Readings    []types.Reading
 	CurrentPage int
 	TotalPages  int
 	HasPrev     bool
@@ -87,19 +86,9 @@ type HistoryData struct {
 	PageItems   []PaginationItem // page numbers and ellipsis for the pagination bar
 }
 
-// RenderCurrentConditionsPartial executes only the current-conditions partial into w.
-// Use for HTMX fragment refresh.
-func RenderCurrentConditionsPartial(w io.Writer, data CurrentConditionsData) error {
-	if dashboardTmpl == nil {
-		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
-	}
-
-	return dashboardTmpl.ExecuteTemplate(w, "partials/current-conditions.html", data)
-}
-
 // RenderHistoryPartial executes only the history partial into w.
 // Use for HTMX fragment refresh.
-func RenderHistoryPartial(w io.Writer, data HistoryData) error {
+func RenderHistoryPartial(w io.Writer, data *HistoryData) error {
 	if dashboardTmpl == nil {
 		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
 	}

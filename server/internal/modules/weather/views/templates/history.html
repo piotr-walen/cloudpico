@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{ template "head" . }}
+</head>
+<body>
+  {{ template "nav" . }}
+  <main class="main">
+    <section class="dashboard">
+        <h1>History</h1>
+        <p class="lead">Weather readings history.</p>
+        {{ with . }}
+        <div class="station-selector-wrapper">
+          <label for="station-selector">Station</label>
+          <select id="station-selector"
+                  name="station_id"
+                  class="station-selector"
+                  hx-get="/partials/current-conditions"
+                  hx-trigger="change"
+                  hx-target="#current-conditions-container"
+                  hx-swap="innerHTML"
+                  hx-include="this">
+            {{ range .Stations }}
+            <option value="{{ .ID }}" {{ if eq $.SelectedStationID .ID }}selected{{ end }}>{{ .Name }}</option>
+            {{ end }}
+          </select>
+        </div>
+        {{ end }}
+        <div class="history-section">
+          <div class="history-header">
+            <h2>History</h2>
+            <div class="history-controls">
+              <label for="history-range">Range</label>
+              <select id="history-range" name="range" class="history-range">
+                <option value="1h" {{ if eq $.SelectedRangeKey "1h" }}selected{{ end }}>1h</option>
+                <option value="6h" {{ if eq $.SelectedRangeKey "6h" }}selected{{ end }}>6h</option>
+                <option value="24h" {{ if eq $.SelectedRangeKey "24h" }}selected{{ end }}>24h</option>
+                <option value="7d" {{ if eq $.SelectedRangeKey "7d" }}selected{{ end }}>7d</option>
+              </select>
+            </div>
+          </div>
+          <div id="history-container"
+               class="history-container"
+               hx-get="/partials/history"
+               hx-trigger="load, every 60s, change from:#station-selector, change from:#history-range"
+               hx-swap="innerHTML"
+               hx-include="#station-selector, #history-range">
+            <p>Loading…</p>
+          </div>
+        </div>
+      </section>
+  </main>
+</body>
+</html>

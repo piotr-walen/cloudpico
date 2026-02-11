@@ -151,7 +151,7 @@ func Test_handleDashboard(t *testing.T) {
 		{ID: "st-2", Name: "Station Two"},
 	}
 
-	t.Run("defaults to first station when stations present and no station_id query", func(t *testing.T) {
+	t.Run("shows all stations when stations present", func(t *testing.T) {
 		if err := views.LoadTemplates(); err != nil {
 			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
 		}
@@ -165,31 +165,15 @@ func Test_handleDashboard(t *testing.T) {
 			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
 		}
 		body := rec.Body.String()
-		// Template renders selected option as: <option value="st-1" selected>
-		if !strings.Contains(body, `value="st-1" selected`) {
-			t.Errorf("body should have first station (st-1) as selected; got %q", body)
+		// Dashboard shows a current-conditions card per station (no selector).
+		if !strings.Contains(body, "Station One") {
+			t.Errorf("body should include first station name; got %q", body)
 		}
-	})
-
-	t.Run("uses station_id from query when stations present", func(t *testing.T) {
-		if err := views.LoadTemplates(); err != nil {
-			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
+		if !strings.Contains(body, "Station Two") {
+			t.Errorf("body should include second station name; got %q", body)
 		}
-		ctrlWithStations := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/?station_id=st-2", nil)
-		rec := httptest.NewRecorder()
-
-		ctrlWithStations.handleDashboard(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, `value="st-2"`) || !strings.Contains(body, "Station Two") {
-			t.Errorf("body should include second station option; got %q", body)
-		}
-		if !strings.Contains(body, `value="st-2" selected`) {
-			t.Errorf("body should mark second station (st-2) as selected; got %q", body)
+		if !strings.Contains(body, "Current conditions") {
+			t.Errorf("body should include current conditions section; got %q", body)
 		}
 	})
 }
@@ -404,127 +388,6 @@ func Test_handleReadings(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		ctrl.handleReadings(rec, req)
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
-		}
-	})
-}
-
-func Test_handleCurrentConditionsPartial(t *testing.T) {
-	if err := views.LoadTemplates(); err != nil {
-		t.Skipf("LoadTemplates failed: %v", err)
-	}
-
-	t.Run("returns 200 and HTML partial with reading when station has latest", func(t *testing.T) {
-		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
-		latest := []types.Reading{
-			{StationID: "st-1", Time: time.Date(2025, 2, 3, 12, 0, 0, 0, time.UTC), Value: 18.5},
-		}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		if ct := rec.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
-			t.Errorf("Content-Type = %q; want text/html; charset=utf-8", ct)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "Current conditions") {
-			t.Errorf("body missing \"Current conditions\"; got %q", body)
-		}
-		if !strings.Contains(body, "Station One") {
-			t.Errorf("body missing station name; got %q", body)
-		}
-		if !strings.Contains(body, "18.5") {
-			t.Errorf("body missing value; got %q", body)
-		}
-	})
-
-	t.Run("returns 200 and no recent reading when no latest", func(t *testing.T) {
-		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: nil}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "No recent reading") {
-			t.Errorf("body missing \"No recent reading\"; got %q", body)
-		}
-	})
-
-	t.Run("uses first station when no station_id query", func(t *testing.T) {
-		stations := []types.Station{{ID: "first", Name: "First Station"}, {ID: "second", Name: "Second"}}
-		latest := []types.Reading{{StationID: "first", Time: time.Now(), Value: 20}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "First Station") {
-			t.Errorf("body should use first station; got %q", body)
-		}
-	})
-
-	t.Run("uses station name for station_id when query param provided", func(t *testing.T) {
-		stations := []types.Station{{ID: "first", Name: "First Station"}, {ID: "second", Name: "Second Station"}}
-		latest := []types.Reading{{StationID: "second", Time: time.Now(), Value: 22.0}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions?station_id=second", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "Second Station") {
-			t.Errorf("body should show station name for station_id=second; got %q", body)
-		}
-		if !strings.Contains(body, "22.0") {
-			t.Errorf("body should show reading value for selected station; got %q", body)
-		}
-	})
-
-	t.Run("uses Unknown Station when invalid station_id provided", func(t *testing.T) {
-		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
-		latest := []types.Reading{{StationID: "st-1", Time: time.Now(), Value: 19.0}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions?station_id=nonexistent", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "Unknown Station") {
-			t.Errorf("body should show Unknown Station for invalid station_id; got %q", body)
-		}
-	})
-
-	t.Run("returns 500 when GetStations fails", func(t *testing.T) {
-		ctrl := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
 
 		if rec.Code != http.StatusInternalServerError {
 			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
