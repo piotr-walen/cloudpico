@@ -16,6 +16,38 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 		http.NotFound(w, r)
 		return
 	}
+
+	data := views.DashboardData{}
+	stations, err := c.repository.GetStations()
+	if err != nil {
+		slog.Error("dashboard: get stations failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
+		return
+	}
+
+	for _, s := range stations {
+		latest, err := c.repository.GetLatestReadings(s.ID, 1)
+		if err != nil {
+			slog.Error("dashboard: get latest reading failed", "station_id", s.ID, "error", err)
+			utils.WriteError(w, http.StatusInternalServerError, "failed to load reading")
+			return
+		}
+		if len(latest) != 0 {
+			data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: &latest[0]})
+			continue
+		}
+		data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: nil})
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := views.RenderDashboard(w, &data); err != nil {
+		slog.Error("dashboard template render failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to render page")
+		return
+	}
+}
+
+func (c *weatherControllerImpl) handleHistory(w http.ResponseWriter, r *http.Request) {
 	stations, err := c.repository.GetStations()
 	if err != nil {
 		slog.Error("dashboard: get stations failed", "error", err)
@@ -30,7 +62,10 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 	if selectedID == "" && len(stations) > 0 {
 		selectedID = stations[0].ID
 	}
-	selectedRangeKey := state.RangeKey
+	selectedRangeKey := r.URL.Query().Get("range")
+	if selectedRangeKey == "" {
+		selectedRangeKey = state.RangeKey
+	}
 	if selectedRangeKey == "" {
 		selectedRangeKey = defaultHistoryRangeKey
 	}
@@ -38,15 +73,15 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 	for _, s := range stations {
 		opts = append(opts, views.StationOption{ID: s.ID, Name: s.Name})
 	}
-	data := views.DashboardData{
+	data := views.HistoryParams{
 		Stations:          opts,
 		SelectedStationID: selectedID,
 		SelectedRangeKey:  selectedRangeKey,
 	}
 	writeWeatherStateCookie(w, selectedID, selectedRangeKey, state.Page)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := views.RenderDashboard(w, data); err != nil {
-		slog.Error("dashboard template render failed", "error", err)
+	if err := views.RenderHistory(w, &data); err != nil {
+		slog.Error("history template render failed", "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to render page")
 		return
 	}
@@ -102,80 +137,6 @@ func (c *weatherControllerImpl) handleReadings(w http.ResponseWriter, r *http.Re
 	}
 
 	utils.WriteJSON(w, http.StatusOK, readings)
-}
-
-func (c *weatherControllerImpl) handleCurrentConditionsPartial(w http.ResponseWriter, r *http.Request) {
-	stations, err := c.repository.GetStations()
-	if err != nil {
-		slog.Error("current conditions: get stations failed", "error", err)
-		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
-		return
-	}
-
-	state := readWeatherStateCookie(r)
-	stationID := r.URL.Query().Get("station_id")
-	if stationID == "" {
-		stationID = state.StationID
-	}
-	var stationName string
-	if stationID == "" {
-		if len(stations) == 0 {
-			var buf bytes.Buffer
-			if err := views.RenderCurrentConditionsPartial(&buf, views.CurrentConditionsData{StationName: "", Reading: nil}); err != nil {
-				slog.Error("current conditions partial render failed", "error", err)
-				utils.WriteError(w, http.StatusInternalServerError, "failed to render")
-				return
-			}
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			if _, err := w.Write(buf.Bytes()); err != nil {
-				slog.Error("current conditions: write response failed", "error", err)
-			}
-			return
-		}
-		stationID = stations[0].ID
-		stationName = stations[0].Name
-	} else {
-		for _, s := range stations {
-			if s.ID == stationID {
-				stationName = s.Name
-				break
-			}
-		}
-		if stationName == "" {
-			slog.Warn("current conditions: unknown station_id", "station_id", stationID)
-			stationName = "Unknown Station"
-		}
-	}
-
-	latest, err := c.repository.GetLatestReadings(stationID, 1)
-	if err != nil {
-		slog.Error("current conditions: get latest failed", "station_id", stationID, "error", err)
-		utils.WriteError(w, http.StatusInternalServerError, "failed to load reading")
-		return
-	}
-
-	var reading *views.ReadingPartial
-	if len(latest) > 0 {
-		reading = &views.ReadingPartial{
-			Value:       latest[0].Value,
-			Time:        latest[0].Time,
-			HumidityPct: latest[0].HumidityPct,
-			PressureHpa: latest[0].PressureHpa,
-		}
-	}
-
-	data := views.CurrentConditionsData{StationName: stationName, Reading: reading}
-	var buf bytes.Buffer
-	if err := views.RenderCurrentConditionsPartial(&buf, data); err != nil {
-		slog.Error("current conditions partial render failed", "error", err)
-		utils.WriteError(w, http.StatusInternalServerError, "failed to render")
-		return
-	}
-	writeWeatherStateCookie(w, stationID, state.RangeKey, state.Page)
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := w.Write(buf.Bytes()); err != nil {
-		slog.Error("current conditions: write response failed", "error", err)
-	}
 }
 
 // buildHistoryPageItems returns page numbers and ellipsis for the pagination bar.
@@ -265,7 +226,7 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 				PageItems:   []views.PaginationItem{{Page: 1, Ellipsis: false}},
 			}
 			var buf bytes.Buffer
-			if err := views.RenderHistoryPartial(&buf, data); err != nil {
+			if err := views.RenderHistoryPartial(&buf, &data); err != nil {
 				slog.Error("history partial render failed", "error", err)
 				utils.WriteError(w, http.StatusInternalServerError, "failed to render")
 				return
@@ -316,22 +277,12 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		return
 	}
 
-	partials := make([]views.ReadingPartial, 0, len(readings))
-	for _, reading := range readings {
-		partials = append(partials, views.ReadingPartial{
-			Value:       reading.Value,
-			Time:        reading.Time,
-			HumidityPct: reading.HumidityPct,
-			PressureHpa: reading.PressureHpa,
-		})
-	}
-
 	data := views.HistoryData{
 		StationName: stationName,
 		StationID:   stationID,
 		RangeLabel:  rangeInfo.Label,
 		RangeKey:    resolvedRangeKey,
-		Readings:    partials,
+		Readings:    readings,
 		CurrentPage: page,
 		TotalPages:  totalPages,
 		HasPrev:     page > 1,
@@ -342,7 +293,7 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 	}
 	writeWeatherStateCookie(w, stationID, resolvedRangeKey, page)
 	var buf bytes.Buffer
-	if err := views.RenderHistoryPartial(&buf, data); err != nil {
+	if err := views.RenderHistoryPartial(&buf, &data); err != nil {
 		slog.Error("history partial render failed", "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to render")
 		return

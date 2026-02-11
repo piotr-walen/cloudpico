@@ -7,6 +7,8 @@ import (
 	"testing"
 	"testing/fstest"
 	"time"
+
+	"cloudpico-server/internal/modules/weather/types"
 )
 
 func TestLoadTemplates_success(t *testing.T) {
@@ -46,7 +48,7 @@ func TestRenderDashboard_notLoaded(t *testing.T) {
 	t.Cleanup(func() { dashboardTmpl = prev })
 
 	var buf bytes.Buffer
-	err := RenderDashboard(&buf, nil)
+	err := RenderDashboard(&buf, (*DashboardData)(nil))
 	if err == nil {
 		t.Fatal("RenderDashboard() = nil; want error when templates not loaded")
 	}
@@ -55,19 +57,19 @@ func TestRenderDashboard_notLoaded(t *testing.T) {
 	}
 }
 
-func TestRenderDashboard_nilData(t *testing.T) {
+func TestRenderDashboard_emptyData(t *testing.T) {
 	if err := LoadTemplates(); err != nil {
 		t.Fatalf("LoadTemplates(): %v", err)
 	}
 
 	var buf bytes.Buffer
-	err := RenderDashboard(&buf, nil)
+	err := RenderDashboard(&buf, &DashboardData{})
 	if err != nil {
-		t.Fatalf("RenderDashboard(nil data) = %v; want nil", err)
+		t.Fatalf("RenderDashboard(empty data) = %v; want nil", err)
 	}
 	out := buf.String()
 	if out == "" {
-		t.Fatal("RenderDashboard(nil data) produced empty output")
+		t.Fatal("RenderDashboard(empty data) produced empty output")
 	}
 	// Base layout and dashboard content should still render.
 	if !strings.Contains(out, "Cloudpico") {
@@ -83,9 +85,10 @@ func TestRenderDashboard_withData(t *testing.T) {
 		t.Fatalf("LoadTemplates(): %v", err)
 	}
 
-	data := DashboardData{
-		Stations:          []StationOption{{ID: "s1", Name: "Station One"}},
-		SelectedStationID: "s1",
+	data := &DashboardData{
+		Stations: []StationReading{
+			{StationID: "test-station-1", StationName: "Station One", Reading: &types.Reading{Value: 22.5, Time: time.Date(2025, 2, 3, 14, 30, 0, 0, time.UTC)}},
+		},
 	}
 
 	var buf bytes.Buffer
@@ -106,8 +109,8 @@ func TestRenderDashboard_withData(t *testing.T) {
 	if !strings.Contains(out, "Station One") {
 		t.Errorf("output missing station name; got %q", out)
 	}
-	if !strings.Contains(out, "station-selector") {
-		t.Errorf("output missing station selector; got %q", out)
+	if !strings.Contains(out, "Current conditions") {
+		t.Errorf("output missing current conditions; got %q", out)
 	}
 	// Ensure we get HTML layout (base defines structure).
 	if !strings.Contains(out, "<!DOCTYPE html>") {
@@ -118,6 +121,99 @@ func TestRenderDashboard_withData(t *testing.T) {
 	}
 }
 
+func TestRenderHistory_notLoaded(t *testing.T) {
+	prev := dashboardTmpl
+	dashboardTmpl = nil
+	t.Cleanup(func() { dashboardTmpl = prev })
+
+	var buf bytes.Buffer
+	err := RenderHistory(&buf, &HistoryParams{})
+	if err == nil {
+		t.Fatal("RenderHistory() = nil; want error when templates not loaded")
+	}
+	if !strings.Contains(err.Error(), "not loaded") {
+		t.Errorf("err = %q; want message containing \"not loaded\"", err.Error())
+	}
+}
+
+func TestRenderHistory_emptyData(t *testing.T) {
+	if err := LoadTemplates(); err != nil {
+		t.Fatalf("LoadTemplates(): %v", err)
+	}
+
+	var buf bytes.Buffer
+	err := RenderHistory(&buf, &HistoryParams{})
+	if err != nil {
+		t.Fatalf("RenderHistory(empty data) = %v; want nil", err)
+	}
+	out := buf.String()
+	if out == "" {
+		t.Fatal("RenderHistory(empty data) produced empty output")
+	}
+	if !strings.Contains(out, "Cloudpico") {
+		t.Errorf("output missing \"Cloudpico\"; got %q", out)
+	}
+	if !strings.Contains(out, "History") {
+		t.Errorf("output missing \"History\"; got %q", out)
+	}
+}
+
+func TestRenderHistory_withData(t *testing.T) {
+	if err := LoadTemplates(); err != nil {
+		t.Fatalf("LoadTemplates(): %v", err)
+	}
+
+	data := &HistoryParams{
+		Stations:          []StationOption{{ID: "s1", Name: "Station One"}},
+		SelectedStationID: "s1",
+		SelectedRangeKey:  "24h",
+	}
+
+	var buf bytes.Buffer
+	err := RenderHistory(&buf, data)
+	if err != nil {
+		t.Fatalf("RenderHistory(data) = %v; want nil", err)
+	}
+	out := buf.String()
+	if out == "" {
+		t.Fatal("RenderHistory(data) produced empty output")
+	}
+	if !strings.Contains(out, "History") {
+		t.Errorf("output missing \"History\"; got %q", out)
+	}
+	if !strings.Contains(out, "Cloudpico") {
+		t.Errorf("output missing \"Cloudpico\"; got %q", out)
+	}
+	if !strings.Contains(out, "Station One") {
+		t.Errorf("output missing station name; got %q", out)
+	}
+	if !strings.Contains(out, "station-selector") {
+		t.Errorf("output missing station selector; got %q", out)
+	}
+	if !strings.Contains(out, "history-range") {
+		t.Errorf("output missing history range selector; got %q", out)
+	}
+	if !strings.Contains(out, "<!DOCTYPE html>") {
+		t.Errorf("output missing DOCTYPE; got %q", out)
+	}
+}
+
+// Ensure RenderHistory propagates write errors (e.g. closed writer).
+func TestRenderHistory_writeError(t *testing.T) {
+	if err := LoadTemplates(); err != nil {
+		t.Fatalf("LoadTemplates(): %v", err)
+	}
+
+	w := &failingWriter{err: io.ErrClosedPipe}
+	err := RenderHistory(w, &HistoryParams{})
+	if err == nil {
+		t.Fatal("RenderHistory(failingWriter) = nil; want error")
+	}
+	if err != io.ErrClosedPipe {
+		t.Errorf("RenderHistory() = %v; want %v", err, io.ErrClosedPipe)
+	}
+}
+
 // Ensure RenderDashboard propagates write errors (e.g. closed writer).
 func TestRenderDashboard_writeError(t *testing.T) {
 	if err := LoadTemplates(); err != nil {
@@ -125,69 +221,12 @@ func TestRenderDashboard_writeError(t *testing.T) {
 	}
 
 	w := &failingWriter{err: io.ErrClosedPipe}
-	err := RenderDashboard(w, nil)
+	err := RenderDashboard(w, &DashboardData{})
 	if err == nil {
 		t.Fatal("RenderDashboard(failingWriter) = nil; want error")
 	}
 	if err != io.ErrClosedPipe {
 		t.Errorf("RenderDashboard() = %v; want %v", err, io.ErrClosedPipe)
-	}
-}
-
-func TestRenderCurrentConditionsPartial_notLoaded(t *testing.T) {
-	prev := dashboardTmpl
-	dashboardTmpl = nil
-	t.Cleanup(func() { dashboardTmpl = prev })
-
-	var buf bytes.Buffer
-	err := RenderCurrentConditionsPartial(&buf, CurrentConditionsData{})
-	if err == nil {
-		t.Fatal("RenderCurrentConditionsPartial() = nil; want error when templates not loaded")
-	}
-	if !strings.Contains(err.Error(), "not loaded") {
-		t.Errorf("err = %q; want message containing \"not loaded\"", err.Error())
-	}
-}
-
-func TestRenderCurrentConditionsPartial_withReading(t *testing.T) {
-	if err := LoadTemplates(); err != nil {
-		t.Fatalf("LoadTemplates(): %v", err)
-	}
-	ts := time.Date(2025, 2, 3, 14, 30, 0, 0, time.UTC)
-	data := CurrentConditionsData{
-		StationName: "Home Station",
-		Reading:     &ReadingPartial{Value: 22.5, Time: ts},
-	}
-	var buf bytes.Buffer
-	err := RenderCurrentConditionsPartial(&buf, data)
-	if err != nil {
-		t.Fatalf("RenderCurrentConditionsPartial() = %v", err)
-	}
-	out := buf.String()
-	if !strings.Contains(out, "Current conditions") {
-		t.Errorf("output missing \"Current conditions\"; got %q", out)
-	}
-	if !strings.Contains(out, "Home Station") {
-		t.Errorf("output missing station name; got %q", out)
-	}
-	if !strings.Contains(out, "22.5") {
-		t.Errorf("output missing value; got %q", out)
-	}
-}
-
-func TestRenderCurrentConditionsPartial_noReading(t *testing.T) {
-	if err := LoadTemplates(); err != nil {
-		t.Fatalf("LoadTemplates(): %v", err)
-	}
-	data := CurrentConditionsData{StationName: "Home", Reading: nil}
-	var buf bytes.Buffer
-	err := RenderCurrentConditionsPartial(&buf, data)
-	if err != nil {
-		t.Fatalf("RenderCurrentConditionsPartial() = %v", err)
-	}
-	out := buf.String()
-	if !strings.Contains(out, "No recent reading") {
-		t.Errorf("output missing \"No recent reading\"; got %q", out)
 	}
 }
 

@@ -151,7 +151,7 @@ func Test_handleDashboard(t *testing.T) {
 		{ID: "st-2", Name: "Station Two"},
 	}
 
-	t.Run("defaults to first station when stations present and no station_id query", func(t *testing.T) {
+	t.Run("shows all stations when stations present", func(t *testing.T) {
 		if err := views.LoadTemplates(); err != nil {
 			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
 		}
@@ -165,31 +165,15 @@ func Test_handleDashboard(t *testing.T) {
 			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
 		}
 		body := rec.Body.String()
-		// Template renders selected option as: <option value="st-1" selected>
-		if !strings.Contains(body, `value="st-1" selected`) {
-			t.Errorf("body should have first station (st-1) as selected; got %q", body)
+		// Dashboard shows a current-conditions card per station (no selector).
+		if !strings.Contains(body, "Station One") {
+			t.Errorf("body should include first station name; got %q", body)
 		}
-	})
-
-	t.Run("uses station_id from query when stations present", func(t *testing.T) {
-		if err := views.LoadTemplates(); err != nil {
-			t.Skipf("LoadTemplates failed (embed not available?): %v", err)
+		if !strings.Contains(body, "Station Two") {
+			t.Errorf("body should include second station name; got %q", body)
 		}
-		ctrlWithStations := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/?station_id=st-2", nil)
-		rec := httptest.NewRecorder()
-
-		ctrlWithStations.handleDashboard(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, `value="st-2"`) || !strings.Contains(body, "Station Two") {
-			t.Errorf("body should include second station option; got %q", body)
-		}
-		if !strings.Contains(body, `value="st-2" selected`) {
-			t.Errorf("body should mark second station (st-2) as selected; got %q", body)
+		if !strings.Contains(body, "Current conditions") {
+			t.Errorf("body should include current conditions section; got %q", body)
 		}
 	})
 }
@@ -404,127 +388,6 @@ func Test_handleReadings(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		ctrl.handleReadings(rec, req)
-
-		if rec.Code != http.StatusInternalServerError {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
-		}
-	})
-}
-
-func Test_handleCurrentConditionsPartial(t *testing.T) {
-	if err := views.LoadTemplates(); err != nil {
-		t.Skipf("LoadTemplates failed: %v", err)
-	}
-
-	t.Run("returns 200 and HTML partial with reading when station has latest", func(t *testing.T) {
-		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
-		latest := []types.Reading{
-			{StationID: "st-1", Time: time.Date(2025, 2, 3, 12, 0, 0, 0, time.UTC), Value: 18.5},
-		}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		if ct := rec.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
-			t.Errorf("Content-Type = %q; want text/html; charset=utf-8", ct)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "Current conditions") {
-			t.Errorf("body missing \"Current conditions\"; got %q", body)
-		}
-		if !strings.Contains(body, "Station One") {
-			t.Errorf("body missing station name; got %q", body)
-		}
-		if !strings.Contains(body, "18.5") {
-			t.Errorf("body missing value; got %q", body)
-		}
-	})
-
-	t.Run("returns 200 and no recent reading when no latest", func(t *testing.T) {
-		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: nil}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "No recent reading") {
-			t.Errorf("body missing \"No recent reading\"; got %q", body)
-		}
-	})
-
-	t.Run("uses first station when no station_id query", func(t *testing.T) {
-		stations := []types.Station{{ID: "first", Name: "First Station"}, {ID: "second", Name: "Second"}}
-		latest := []types.Reading{{StationID: "first", Time: time.Now(), Value: 20}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "First Station") {
-			t.Errorf("body should use first station; got %q", body)
-		}
-	})
-
-	t.Run("uses station name for station_id when query param provided", func(t *testing.T) {
-		stations := []types.Station{{ID: "first", Name: "First Station"}, {ID: "second", Name: "Second Station"}}
-		latest := []types.Reading{{StationID: "second", Time: time.Now(), Value: 22.0}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions?station_id=second", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "Second Station") {
-			t.Errorf("body should show station name for station_id=second; got %q", body)
-		}
-		if !strings.Contains(body, "22.0") {
-			t.Errorf("body should show reading value for selected station; got %q", body)
-		}
-	})
-
-	t.Run("uses Unknown Station when invalid station_id provided", func(t *testing.T) {
-		stations := []types.Station{{ID: "st-1", Name: "Station One"}}
-		latest := []types.Reading{{StationID: "st-1", Time: time.Now(), Value: 19.0}}
-		ctrl := NewWeatherController(&mockRepo{stations: stations, latest: latest}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions?station_id=nonexistent", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
-
-		if rec.Code != http.StatusOK {
-			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
-		}
-		body := rec.Body.String()
-		if !strings.Contains(body, "Unknown Station") {
-			t.Errorf("body should show Unknown Station for invalid station_id; got %q", body)
-		}
-	})
-
-	t.Run("returns 500 when GetStations fails", func(t *testing.T) {
-		ctrl := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/partials/current-conditions", nil)
-		rec := httptest.NewRecorder()
-
-		ctrl.handleCurrentConditionsPartial(rec, req)
 
 		if rec.Code != http.StatusInternalServerError {
 			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
@@ -858,6 +721,320 @@ func Test_handleHistoryPartial(t *testing.T) {
 		}
 		if !strings.Contains(body, "First") {
 			t.Errorf("body should show First link on page 2; got %q", body)
+		}
+	})
+}
+
+func Test_handleHistory(t *testing.T) {
+	if err := views.LoadTemplates(); err != nil {
+		t.Skipf("LoadTemplates failed: %v", err)
+	}
+
+	stations := []types.Station{
+		{ID: "st-1", Name: "Station One"},
+		{ID: "st-2", Name: "Station Two"},
+	}
+
+	t.Run("defaults to first station and default range when no params or cookies", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		if ct := rec.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+			t.Errorf("Content-Type = %q; want text/html; charset=utf-8", ct)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "History") {
+			t.Errorf("body should include History heading; got %q", body)
+		}
+		if !strings.Contains(body, "station-selector") {
+			t.Errorf("body should include station selector; got %q", body)
+		}
+		if !strings.Contains(body, "history-range") {
+			t.Errorf("body should include range selector; got %q", body)
+		}
+		// First station should be selected
+		if !strings.Contains(body, `value="st-1" selected`) {
+			t.Errorf("body should have first station selected; got %q", body)
+		}
+		// Default range (24h) should be selected
+		if !strings.Contains(body, `value="24h" selected`) {
+			t.Errorf("body should have default range (24h) selected; got %q", body)
+		}
+		// Check that both stations are in the selector
+		if !strings.Contains(body, "Station One") {
+			t.Errorf("body should include first station name; got %q", body)
+		}
+		if !strings.Contains(body, "Station Two") {
+			t.Errorf("body should include second station name; got %q", body)
+		}
+	})
+
+	t.Run("honors station_id query param", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history?station_id=st-2", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Second station should be selected
+		if !strings.Contains(body, `value="st-2" selected`) {
+			t.Errorf("body should have second station selected; got %q", body)
+		}
+		// First station should not be selected
+		if strings.Contains(body, `value="st-1" selected`) {
+			t.Errorf("body should not have first station selected; got %q", body)
+		}
+	})
+
+	t.Run("honors range query param", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history?range=7d", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// 7d range should be selected
+		if !strings.Contains(body, `value="7d" selected`) {
+			t.Errorf("body should have 7d range selected; got %q", body)
+		}
+		// Default range (24h) should not be selected
+		if strings.Contains(body, `value="24h" selected`) {
+			t.Errorf("body should not have default range selected; got %q", body)
+		}
+	})
+
+	t.Run("honors both station_id and range query params", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history?station_id=st-2&range=1h", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Second station should be selected
+		if !strings.Contains(body, `value="st-2" selected`) {
+			t.Errorf("body should have second station selected; got %q", body)
+		}
+		// 1h range should be selected
+		if !strings.Contains(body, `value="1h" selected`) {
+			t.Errorf("body should have 1h range selected; got %q", body)
+		}
+	})
+
+	t.Run("falls back to cookie state when query params not provided", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		// Set cookie with station_id=st-2 and range=6h
+		cookie := &http.Cookie{
+			Name:  "weather_state",
+			Value: "station_id=st-2&range=6h&page=1",
+		}
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Second station from cookie should be selected
+		if !strings.Contains(body, `value="st-2" selected`) {
+			t.Errorf("body should have second station from cookie selected; got %q", body)
+		}
+		// 6h range from cookie should be selected
+		if !strings.Contains(body, `value="6h" selected`) {
+			t.Errorf("body should have 6h range from cookie selected; got %q", body)
+		}
+	})
+
+	t.Run("query params override cookie state", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history?station_id=st-1&range=7d", nil)
+		// Set cookie with different values
+		cookie := &http.Cookie{
+			Name:  "weather_state",
+			Value: "station_id=st-2&range=6h&page=1",
+		}
+		req.AddCookie(cookie)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Query param station should be selected (not cookie)
+		if !strings.Contains(body, `value="st-1" selected`) {
+			t.Errorf("body should have station from query param selected; got %q", body)
+		}
+		// Query param range should be selected (not cookie)
+		if !strings.Contains(body, `value="7d" selected`) {
+			t.Errorf("body should have range from query param selected; got %q", body)
+		}
+	})
+
+	t.Run("rendered HTML includes station selector with all stations", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Check for station selector element
+		if !strings.Contains(body, `id="station-selector"`) {
+			t.Errorf("body should include station-selector id; got %q", body)
+		}
+		if !strings.Contains(body, `name="station_id"`) {
+			t.Errorf("body should include station_id name attribute; got %q", body)
+		}
+		// Check for both station options
+		if !strings.Contains(body, `<option value="st-1"`) {
+			t.Errorf("body should include first station option; got %q", body)
+		}
+		if !strings.Contains(body, `<option value="st-2"`) {
+			t.Errorf("body should include second station option; got %q", body)
+		}
+	})
+
+	t.Run("rendered HTML includes range selector with all options", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Check for range selector element
+		if !strings.Contains(body, `id="history-range"`) {
+			t.Errorf("body should include history-range id; got %q", body)
+		}
+		if !strings.Contains(body, `name="range"`) {
+			t.Errorf("body should include range name attribute; got %q", body)
+		}
+		// Check for all range options
+		if !strings.Contains(body, `<option value="1h"`) {
+			t.Errorf("body should include 1h option; got %q", body)
+		}
+		if !strings.Contains(body, `<option value="6h"`) {
+			t.Errorf("body should include 6h option; got %q", body)
+		}
+		if !strings.Contains(body, `<option value="24h"`) {
+			t.Errorf("body should include 24h option; got %q", body)
+		}
+		if !strings.Contains(body, `<option value="7d"`) {
+			t.Errorf("body should include 7d option; got %q", body)
+		}
+	})
+
+	t.Run("returns 500 when GetStations fails", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusInternalServerError {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusInternalServerError)
+		}
+		body := rec.Body.String()
+		if !strings.Contains(body, "failed to load stations") {
+			t.Errorf("body = %q; expected 'failed to load stations'", body)
+		}
+	})
+
+	t.Run("renders HTML successfully when templates are loaded", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Verify HTML structure
+		if !strings.Contains(body, "<!DOCTYPE html>") {
+			t.Errorf("body should include DOCTYPE; got %q", body)
+		}
+		if !strings.Contains(body, "<html") {
+			t.Errorf("body should include html tag; got %q", body)
+		}
+	})
+
+	t.Run("sets cookie with selected station and range", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history?station_id=st-2&range=7d", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		// Check that cookie was set
+		cookies := rec.Result().Cookies()
+		var weatherCookie *http.Cookie
+		for _, c := range cookies {
+			if c.Name == "weather_state" {
+				weatherCookie = c
+				break
+			}
+		}
+		if weatherCookie == nil {
+			t.Fatal("weather_state cookie not set")
+		}
+		if !strings.Contains(weatherCookie.Value, "station_id=st-2") {
+			t.Errorf("cookie should contain station_id=st-2; got %q", weatherCookie.Value)
+		}
+		if !strings.Contains(weatherCookie.Value, "range=7d") {
+			t.Errorf("cookie should contain range=7d; got %q", weatherCookie.Value)
+		}
+	})
+
+	t.Run("handles empty stations list gracefully", func(t *testing.T) {
+		ctrl := NewWeatherController(&mockRepo{stations: []types.Station{}}).(*weatherControllerImpl)
+		req := httptest.NewRequest(http.MethodGet, "/history", nil)
+		rec := httptest.NewRecorder()
+
+		ctrl.handleHistory(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("status = %d; want %d", rec.Code, http.StatusOK)
+		}
+		body := rec.Body.String()
+		// Should still render the page with empty station selector
+		if !strings.Contains(body, "History") {
+			t.Errorf("body should include History heading; got %q", body)
+		}
+		if !strings.Contains(body, "station-selector") {
+			t.Errorf("body should include station selector; got %q", body)
 		}
 	})
 }
