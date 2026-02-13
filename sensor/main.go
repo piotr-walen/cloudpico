@@ -42,8 +42,13 @@ func parseDeviceIDFromStr(s string) uint32 {
 }
 
 func main() {
-	machine.Serial.Configure(machine.UARTConfig{})
 	deviceID := parseDeviceIDFromStr(deviceIDStr)
+
+	machine.Serial.Configure(machine.UARTConfig{})
+
+	led := machine.LED
+	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	fmt.Printf("boot: pico2w BLE beacon + BME280 sensor (device_id: 0x%08X)\r\n", deviceID)
 
 	ble, err := NewBLE(deviceID, SendAdvertisementsOptions{
@@ -61,11 +66,14 @@ func main() {
 		return
 	}
 
+	sleepDuration := SENSOR_POLL_INTERVAL - BLE_ADVERTISEMENT_DURATION
 	for {
+		led.High()
+
 		reading, err := sensor.Read()
 
 		if err != nil {
-			time.Sleep(SENSOR_POLL_INTERVAL)
+			time.Sleep(sleepDuration)
 			continue
 		}
 
@@ -73,11 +81,12 @@ func main() {
 		reading_id, err := ble.Send(reading)
 		if err != nil {
 			fmt.Printf("ERROR: BLE advertisement update failed: %v\r\n", err)
-			time.Sleep(SENSOR_POLL_INTERVAL)
+			time.Sleep(sleepDuration)
 			continue
 		}
 		fmt.Printf("BLE advertisement sent (reading_id: %d)\r\n", reading_id)
 
-		time.Sleep(SENSOR_POLL_INTERVAL)
+		led.Low()
+		time.Sleep(sleepDuration)
 	}
 }

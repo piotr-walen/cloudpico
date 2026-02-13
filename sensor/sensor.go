@@ -23,8 +23,8 @@ type Sensor struct {
 func NewSensor() (Sensor, error) {
 	i2c := machine.I2C1
 	if err := i2c.Configure(machine.I2CConfig{
-		SDA:       machine.GP14,
-		SCL:       machine.GP15,
+		SDA:       machine.GP32,
+		SCL:       machine.GP33,
 		Frequency: 400 * machine.KHz,
 	}); err != nil {
 		return Sensor{}, err
