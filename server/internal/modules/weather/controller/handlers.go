@@ -11,6 +11,41 @@ import (
 	"cloudpico-server/internal/utils"
 )
 
+func (c *weatherControllerImpl) handleStationsPartial(w http.ResponseWriter, r *http.Request) {
+	data := views.DashboardData{}
+	stations, err := c.repository.GetStations()
+	if err != nil {
+		slog.Error("stations partial: get stations failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
+		return
+	}
+
+	for _, s := range stations {
+		latest, err := c.repository.GetLatestReadings(s.ID, 1)
+		if err != nil {
+			slog.Error("stations partial: get latest reading failed", "station_id", s.ID, "error", err)
+			utils.WriteError(w, http.StatusInternalServerError, "failed to load reading")
+			return
+		}
+		if len(latest) != 0 {
+			data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: &latest[0]})
+			continue
+		}
+		data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: nil})
+	}
+
+	var buf bytes.Buffer
+	if err := views.RenderStationsPartial(&buf, &data); err != nil {
+		slog.Error("stations partial render failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to render")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		slog.Error("stations partial: write response failed", "error", err)
+	}
+}
+
 func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)

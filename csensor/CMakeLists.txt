@@ -37,6 +37,12 @@ endif()
 pico_enable_stdio_usb(cloudpico 1)
 pico_enable_stdio_uart(cloudpico 0)
 
+set(DEVICE_ID "0x00000000" CACHE STRING "BLE device ID")
+target_compile_definitions(cloudpico PRIVATE DEVICE_ID=${DEVICE_ID})
+
+set(POLL_INTERVAL_MS "10000" CACHE STRING "Sensor poll interval in milliseconds")
+target_compile_definitions(cloudpico PRIVATE POLL_INTERVAL_MS=${POLL_INTERVAL_MS})
+
 
 
 # create map/bin/hex file etc.

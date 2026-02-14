@@ -96,3 +96,12 @@ func RenderHistoryPartial(w io.Writer, data *HistoryData) error {
 
 	return dashboardTmpl.ExecuteTemplate(w, "partials/history.html", data)
 }
+
+// RenderStationsPartial executes only the stations partial into w.
+// Use for HTMX fragment refresh (e.g. dashboard auto-refresh).
+func RenderStationsPartial(w io.Writer, data *DashboardData) error {
+	if dashboardTmpl == nil {
+		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
+	}
+	return dashboardTmpl.ExecuteTemplate(w, "partials/stations.html", data)
+}

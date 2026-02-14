@@ -49,11 +49,18 @@
 #define I2C_SDA_PIN 16   // GP16 (Pin 21) - SDA (Serial Data)
 #define I2C_SCL_PIN 17   // GP17 (Pin 22) - SCL (Serial Clock)
 
+
+
 // External LED on GP0 (Physical Pin 1)
 #define LED_PIN 0   // GP0 (Pin 1) - External LED
 
-// Device ID for BLE advertising (can be changed to use chip ID or other unique identifier)
-#define DEVICE_ID 0x12345678
+#ifndef DEVICE_ID
+#define DEVICE_ID 0x00000000
+#endif
+
+#ifndef POLL_INTERVAL_MS
+#define POLL_INTERVAL_MS 10000
+#endif
 
 // Initialize external LED on GP0
 static void led_init(void) {
@@ -66,10 +73,19 @@ static void led_init(void) {
 static void led_set(bool on) {
     gpio_put(LED_PIN, on);
 }
-    
+
+// Print diagnostics and halt in an infinite noop loop (no return).
+static void noop_loop(void) {
+    while (1) {
+        __asm volatile ("nop");
+    }
+}
 
 int main() {
     stdio_init_all();
+    
+    // Wait for USB serial to be ready (important for debugging)
+    sleep_ms(3000);
 
 #if !defined(i2c_default)
     #warning i2c / bme280_i2c example requires a board with I2C support
@@ -107,8 +123,10 @@ int main() {
     // Initialize the sensor
     rslt = bme280_init(&dev);
     if (rslt != BME280_OK) {
-        printf("Failed to initialize BME280 sensor. Error code: %d\n", rslt);
-        return -1;
+        printf("ERROR: Failed to initialize BME280 sensor. Error code: %d\n", rslt);
+        printf("ERROR: Check I2C connections (SDA=GP%d, SCL=GP%d) and sensor power\n", I2C_SDA_PIN, I2C_SCL_PIN);
+        printf("ERROR: Program will exit. Press reset to retry.\n");
+        noop_loop();
     }
 
     printf("BME280 initialized successfully. Chip ID: 0x%02X\n", dev.chip_id);
@@ -124,32 +142,41 @@ int main() {
 
     rslt = bme280_set_sensor_settings(BME280_SEL_ALL_SETTINGS, &settings, &dev);
     if (rslt != BME280_OK) {
-        printf("Failed to set sensor settings. Error code: %d\n", rslt);
-        return -1;
+        printf("ERROR: Failed to set sensor settings. Error code: %d\n", rslt);
+        printf("ERROR: Program will exit. Press reset to retry.\n");
+        noop_loop();
     }
 
     // Calculate measurement delay
     rslt = bme280_cal_meas_delay(&req_delay, &settings);
     if (rslt != BME280_OK) {
-        printf("Failed to calculate measurement delay. Error code: %d\n", rslt);
-        return -1;
+        printf("ERROR: Failed to calculate measurement delay. Error code: %d\n", rslt);
+        printf("ERROR: Program will exit. Press reset to retry.\n");
+        noop_loop();
     }
 
     // Set sensor to normal mode
     rslt = bme280_set_sensor_mode(BME280_POWERMODE_NORMAL, &dev);
     if (rslt != BME280_OK) {
-        printf("Failed to set sensor mode. Error code: %d\n", rslt);
-        return -1;
+        printf("ERROR: Failed to set sensor mode. Error code: %d\n", rslt);
+        printf("ERROR: Program will exit. Press reset to retry.\n");
+        noop_loop();
     }
 
     printf("Sensor configured. Measurement delay: %lu us\n", req_delay);
     
-    // Initialize BLE advertising
+    // Initialize BLE advertising (only on Pico W)
+    #ifdef CYW43_WL_GPIO_LED_PIN
     printf("Initializing BLE advertising...\n");
     int rc = ble_advertise_init(DEVICE_ID);
     if (rc != 0) {
         printf("Warning: BLE advertising initialization failed (code: %d). Continuing without BLE.\n", rc);
+    } else {
+        printf("BLE advertising initialized successfully.\n");
     }
+    #else
+    printf("Note: BLE not available (requires Pico W). Continuing with sensor readings only.\n");
+    #endif
     
     printf("Starting sensor readings...\n\n");
 
@@ -157,7 +184,7 @@ int main() {
     sleep_ms(250);
 
     // Timing for sensor readings (every 1 second)
-    absolute_time_t next_sensor_read = make_timeout_time_ms(1000);
+    absolute_time_t next_sensor_read = make_timeout_time_ms(POLL_INTERVAL_MS);
     bool led_state = false;
 
     while (1) {
@@ -185,11 +212,11 @@ int main() {
                 float temperature, pressure, humidity;
                 #ifdef BME280_DOUBLE_ENABLE
                 temperature = comp_data.temperature;
-                pressure = comp_data.pressure / 1000.0f;  // Convert Pa to kPa
+                pressure = comp_data.pressure / 100.0f;  // Convert Pa to hPa
                 humidity = comp_data.humidity;
                 #else
                 temperature = comp_data.temperature / 100.0f;
-                pressure = comp_data.pressure / 1000.0f;  // Convert Pa to kPa
+                pressure = comp_data.pressure / 100.0f;  // Convert Pa to hPa
                 humidity = comp_data.humidity / 1024.0f;
                 #endif
                 
@@ -199,7 +226,8 @@ int main() {
                 printf("Humidity:    %.2f %%\n", humidity);
                 printf("---\n");
                 
-                // Update BLE advertisement with sensor data
+                // Update BLE advertisement with sensor data (only on Pico W)
+                #ifdef CYW43_WL_GPIO_LED_PIN
                 if (ble_advertise_is_ready()) {
                     sensor_data_t sensor_data = {
                         .temperature = temperature,
@@ -208,12 +236,13 @@ int main() {
                     };
                     ble_advertise_update(&sensor_data);
                 }
+                #endif
             } else {
                 printf("Failed to read sensor data. Error code: %d\n", rslt);
             }
 
             // Schedule next sensor read (1 second from now)
-            next_sensor_read = make_timeout_time_ms(1000);
+            next_sensor_read = make_timeout_time_ms(POLL_INTERVAL_MS);
         }
     }
 #endif
