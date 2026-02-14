@@ -1,0 +1,3 @@
+[submodule "csensor/lib/bosch_bme280_api"]
+	path = csensor/lib/bosch_bme280_api
+	url = https://github.com/boschsensortec/BME280_SensorAPI.git

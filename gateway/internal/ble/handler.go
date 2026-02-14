@@ -3,6 +3,7 @@ package ble
 import (
 	"cloudpico-gateway/internal/mqtt"
 	"cloudpico-gateway/internal/utils"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -36,21 +37,23 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 	}
 
 	h.dedupMu.Lock()
-	if h.seen[m.Address] == nil {
-		h.seen[m.Address] = make(map[uint32]struct{})
+	deviceKey := fmt.Sprintf("%08X", sr.DeviceID)
+	if h.seen[deviceKey] == nil {
+		h.seen[deviceKey] = make(map[uint32]struct{})
 	}
-	if _, ok := h.seen[m.Address][sr.ReadingID]; ok {
+	if _, ok := h.seen[deviceKey][sr.ReadingID]; ok {
 		h.dedupMu.Unlock()
 		return
 	}
-	h.seen[m.Address][sr.ReadingID] = struct{}{}
-	if len(h.seen[m.Address]) > bleDedupMaxIDsPerDevice {
-		h.seen[m.Address] = make(map[uint32]struct{})
-		h.seen[m.Address][sr.ReadingID] = struct{}{}
+	h.seen[deviceKey][sr.ReadingID] = struct{}{}
+	if len(h.seen[deviceKey]) > bleDedupMaxIDsPerDevice {
+		h.seen[deviceKey] = make(map[uint32]struct{})
+		h.seen[deviceKey][sr.ReadingID] = struct{}{}
 	}
 	h.dedupMu.Unlock()
 
-	stationID := "outdoor"
+	// Use device ID from payload as station ID (format: pico-{device_id})
+	stationID := fmt.Sprintf("pico-%08X", sr.DeviceID)
 	temp := sr.Temperature
 	hum := sr.Humidity
 	press := sr.Pressure
@@ -63,12 +66,15 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 		Pressure:    &press,
 		Sequence:    &seq,
 	}
+
 	if err := h.mqttClient.PublishTelemetry(telemetry); err != nil {
 		slog.Warn("ble: failed to publish telemetry", "addr", m.Address, "reading_id", sr.ReadingID, "error", err)
 		return
 	}
 	slog.Info("ble: sensor reading published",
 		"addr", m.Address,
+		"device_id", sr.DeviceID,
+		"station_id", stationID,
 		"reading_id", sr.ReadingID,
 		"rssi", m.RSSI,
 		"T", sr.Temperature, "P", sr.Pressure, "H", sr.Humidity,

@@ -1,5 +1,4 @@
 PRAGMA foreign_keys = ON;
 
-INSERT OR IGNORE INTO stations (name, metadata) VALUES
-  ('home',    '{}'),
-  ('outdoor', '{}');
+-- Stations are now created dynamically when devices send telemetry data
+-- No seed data needed

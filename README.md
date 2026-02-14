@@ -1,6 +1,6 @@
 # Cloudpico
 
-This project is a self-hosted weather station stack built around **battery-powered Raspberry Pi Pico 2** devices (firmware in **TinyGo**) that broadcast sensor telemetry using **BLE advertisements (connectionless)**. A linux host continuously scans for these advertisements, validates and parses payloads, republishes telemetry into **MQTT**, and a **Go backend** ingests readings into **SQLite** and exposes an **HTTP API**. The backend also serves a simple HTML web client for viewing current conditions and basic history.
+This project is a self-hosted weather station stack built around **battery-powered Raspberry Pi Pico 2** devices that broadcast sensor telemetry using **BLE advertisements (connectionless)**. Firmware in ~~**TinyGo**~~ **C with pico-sdk** *(tinygo is not working well with turning on/off BLE, so using pico sdk instead)*. A linux host continuously scans for these advertisements, validates and parses payloads, republishes telemetry into **MQTT**, and a **Go backend** ingests readings into **SQLite** and exposes an **HTTP API**. The backend also serves a simple HTML web client for viewing current conditions and basic history.
 
 ## Architecture
 

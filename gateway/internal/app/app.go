@@ -5,6 +5,7 @@ import (
 	"cloudpico-gateway/internal/config"
 	"cloudpico-gateway/internal/mqtt"
 	"context"
+	"fmt"
 	"log/slog"
 )
 
@@ -21,14 +22,13 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 
-	go func() {
-		// Connect to MQTT broker with retry and backoff
-		if err := mqttClient.Connect(ctx); err != nil {
-			slog.Error("mqtt connect failed", "error", err)
-			return
-		}
-		defer mqttClient.Disconnect()
-	}()
+	// Connect to MQTT broker before starting BLE listener
+	// This ensures we're connected before processing telemetry
+	if err := mqttClient.Connect(ctx); err != nil {
+		return fmt.Errorf("mqtt connect failed: %w", err)
+	}
+	defer mqttClient.Disconnect()
+
 	bleListener := ble.NewListener(ble.Options{
 		Adapter: "hci0",
 		Filter: ble.Filter{
