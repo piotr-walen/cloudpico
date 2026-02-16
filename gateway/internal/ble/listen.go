@@ -117,9 +117,13 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 				slog.Debug("ble: magic at offset 2, stripped Company ID", "payload_len", len(payload))
 			} else {
 				// No match, skip
+				dataStart := "N/A"
+				if len(md.Data) >= 2 {
+					dataStart = fmt.Sprintf("%02X %02X", md.Data[0], md.Data[1])
+				}
 				slog.Debug("ble: no magic match",
 					"data_len", len(md.Data),
-					"data_start", fmt.Sprintf("%02X %02X", md.Data[0], md.Data[1]),
+					"data_start", dataStart,
 					"data_at_2", func() string {
 						if len(md.Data) >= 4 {
 							return fmt.Sprintf("%02X %02X", md.Data[2], md.Data[3])

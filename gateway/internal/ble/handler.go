@@ -11,8 +11,6 @@ import (
 	cloudpico_shared "cloudpico-shared/types"
 )
 
-const bleDedupMaxIDsPerDevice = 500
-
 // BLESensorHandler processes BLE sensor readings with deduplication and MQTT publishing.
 type BLESensorHandler struct {
 	mqttClient *mqtt.Client
@@ -45,14 +43,11 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 		h.seen[deviceKey][sr.RunCount] = make(map[uint32]struct{})
 	}
 	if _, ok := h.seen[deviceKey][sr.RunCount][sr.ReadingID]; ok {
+		slog.Debug("ble: deduplicated reading", "addr", m.Address, "device_id", sr.DeviceID, "run_count", sr.RunCount, "reading_id", sr.ReadingID)
 		h.dedupMu.Unlock()
 		return
 	}
 	h.seen[deviceKey][sr.RunCount][sr.ReadingID] = struct{}{}
-	if len(h.seen[deviceKey]) > bleDedupMaxIDsPerDevice {
-		h.seen[deviceKey] = make(map[uint32]map[uint32]struct{})
-		h.seen[deviceKey][sr.RunCount][sr.ReadingID] = struct{}{}
-	}
 	h.dedupMu.Unlock()
 
 	// Use device ID from payload as station ID (format: pico-{device_id})

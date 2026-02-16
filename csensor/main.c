@@ -96,7 +96,13 @@ int main()
     sleep_ms(3000);
     printf("Device ID = 0x%08X\n", DEVICE_ID);
 
-    flash_counter_increment_and_store(&run_count);
+    bool flash_counter_success = flash_counter_increment_and_store(&run_count);
+    if (!flash_counter_success)
+    {
+        printf("ERROR: Flash counter increment/store failed, cannot continue\n");
+        noop_loop();
+    }
+
     printf("Run count = %lu\n", (unsigned long)run_count);
 
     bme280_status = bme280_sensor_init(I2C_SDA_PIN, I2C_SCL_PIN, BME280_ADDR, 100 * 1000);
