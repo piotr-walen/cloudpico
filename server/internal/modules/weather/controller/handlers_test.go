@@ -56,7 +56,7 @@ func (m *mockRepo) GetReadingsCount(stationID string, from, to time.Time) (int, 
 	return len(m.readings), nil
 }
 
-func (m *mockRepo) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64) error {
+func (m *mockRepo) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, runCount *uint32, readingID *uint32) error {
 	return m.insertErr
 }
 

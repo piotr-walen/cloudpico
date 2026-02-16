@@ -59,14 +59,6 @@ func formatOptFloat(p *float64, unit string) string {
 	return fmt.Sprintf("%f %s", *p, unit)
 }
 
-// formatOptInt formats an optional int for logging; returns "-" if nil.
-func formatOptInt(p *int) string {
-	if p == nil {
-		return "-"
-	}
-	return fmt.Sprintf("%d", *p)
-}
-
 // formatOptUint32 formats an optional uint32 for logging; returns "-" if nil.
 func formatOptUint32(p *uint32) string {
 	if p == nil {
