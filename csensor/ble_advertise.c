@@ -10,8 +10,10 @@
 #include "ble_advertise.h"
 #include "btstack.h"
 #include "pico/cyw43_arch.h"
-#include "pico/btstack_cyw43.h"
+#include "pico/btstack_cyw43.h" 
 #include "pico/stdlib.h"
+#include "pico/time.h"
+#include "pico/async_context.h"
 
 #define ADV_INTERVAL_MIN_MS 800
 #define ADV_INTERVAL_MAX_MS 800
@@ -201,7 +203,18 @@ int ble_advertise_init(uint32_t dev_id) {
     return 0;
 }
 
-int ble_advertise_update(uint32_t run_count, sensor_data_t *data) {
+/**
+ * Process CYW43/BLE async work until the given deadline.
+ * Polls once to handle any pending work, then blocks until either new work
+ * arrives or the absolute time `until` is reached. Use in the main loop to
+ * keep the BLE stack running while waiting (e.g. between ad updates).
+ */
+void ble_advertise_poll_until(absolute_time_t until) {
+    async_context_poll(cyw43_arch_async_context());
+    async_context_wait_for_work_until(cyw43_arch_async_context(), until);
+}
+
+int ble_advertise_start(uint32_t run_count, sensor_data_t *data) {
     if (!ble_initialized) {
         return -1;
     }
@@ -233,17 +246,19 @@ int ble_advertise_update(uint32_t run_count, sensor_data_t *data) {
     return 0;
 }
 
+void ble_advertise_stop(void) {
+    if (!advertising_enabled) {
+        return;
+    }
+    gap_advertisements_enable(0);
+    advertising_enabled = false;
+}
+
 void ble_advertise_deinit(void) {
     if (!ble_initialized) {
         return;
     }
-    
-    // Disable advertising
-    if (advertising_enabled) {
-        gap_advertisements_enable(0);
-        advertising_enabled = false;
-    }
-    
+    ble_advertise_stop();
     // Turn off Bluetooth power (but keep BTstack setup intact)
     hci_power_control(HCI_POWER_OFF);
     

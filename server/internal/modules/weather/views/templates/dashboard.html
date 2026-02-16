@@ -12,7 +12,7 @@
       <div id="stations-container"
            class="stations-container"
            hx-get="/partials/stations"
-           hx-trigger="load, every 2s"
+           hx-trigger="load, every 20s"
            hx-swap="innerHTML">
         {{ with . }}
         {{ range .Stations }}
@@ -25,7 +25,7 @@
             <span class="reading-humidity">{{ printf "%.0f" .Reading.HumidityPct }}% humidity</span>
             <span class="reading-pressure">{{ printf "%.0f" .Reading.PressureHpa }} hPa</span>
           </p>
-          <p class="reading-time" title="{{ .Reading.Time.Format "2006-01-02T15:04:05Z07:00" }}">Updated {{ .Reading.Time.Format "3:04 PM" }}</p>
+          <p class="reading-time" title="{{ .Reading.Time.Format "2006-01-02T15:04:05Z07:00" }}" data-time="{{ .Reading.Time.Format "2006-01-02T15:04:05Z07:00" }}">Updated {{ .Reading.Time.Format "3:04 PM" }}</p>
           {{ else }}
           <p class="no-data">No recent reading</p>
           {{ end }}
@@ -35,5 +35,6 @@
       </div>
     </section>
   </main>
+  <script src="/static/js/format-reading-times.js" defer></script>
 </body>
 </html>

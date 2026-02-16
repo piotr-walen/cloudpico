@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
+# Export compile_commands.json for VSCode/Cursor IntelliSense (Pico SDK headers)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # include pico_sdk_import.cmake from the Pico SDK
 include(pico_sdk_import.cmake)
 
