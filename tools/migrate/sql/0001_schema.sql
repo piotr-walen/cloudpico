@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS readings (
   temperature_c   REAL,
   humidity_pct    REAL,
   pressure_hpa    REAL,
+  run_count       INTEGER,
+  reading_id      INTEGER,
 
   -- Composite primary key: one reading per station per timestamp
   PRIMARY KEY (station_id, ts),

@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS readings (
   temperature_c   REAL,
   humidity_pct    REAL,
   pressure_hpa    REAL,
+  run_count       INTEGER,
+  reading_id      INTEGER,
   PRIMARY KEY (station_id, ts),
   FOREIGN KEY (station_id) REFERENCES stations(id) ON UPDATE CASCADE ON DELETE CASCADE
 );
@@ -508,7 +510,7 @@ func TestInsertReading_ByNumericStationID(t *testing.T) {
 	hum := 65.0
 	press := 1013.25
 
-	err = repo.InsertReading("1", ts, &temp, &hum, &press)
+	err = repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil)
 	if err != nil {
 		t.Fatalf("InsertReading: %v", err)
 	}
@@ -547,7 +549,7 @@ func TestInsertReading_ByStationName(t *testing.T) {
 	hum := 50.0
 	press := 1015.0
 
-	err = repo.InsertReading("Alpha", ts, &temp, &hum, &press)
+	err = repo.InsertReading("Alpha", ts, &temp, &hum, &press, nil, nil)
 	if err != nil {
 		t.Fatalf("InsertReading(Alpha): %v", err)
 	}
@@ -584,7 +586,7 @@ func TestInsertReading_InvalidHumidity(t *testing.T) {
 	t.Run("humidity_below_zero", func(t *testing.T) {
 		hum := -1.0
 		press := 1013.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for humidity -1")
 		}
@@ -596,7 +598,7 @@ func TestInsertReading_InvalidHumidity(t *testing.T) {
 	t.Run("humidity_above_100", func(t *testing.T) {
 		hum := 101.0
 		press := 1013.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for humidity 101")
 		}
@@ -625,7 +627,7 @@ func TestInsertReading_InvalidPressure(t *testing.T) {
 
 	t.Run("pressure_zero", func(t *testing.T) {
 		press := 0.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for pressure 0")
 		}
@@ -636,7 +638,7 @@ func TestInsertReading_InvalidPressure(t *testing.T) {
 
 	t.Run("pressure_negative", func(t *testing.T) {
 		press := -10.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for pressure -10")
 		}
@@ -664,5 +666,5 @@ func TestRepository_ImplementsInterface(t *testing.T) {
 	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10, 0)
 	_, _ = repo.GetReadingsCount("1", time.Now().Add(-24*time.Hour), time.Now())
 	temp, hum, press := 20.0, 50.0, 1013.0
-	_ = repo.InsertReading("1", time.Now(), &temp, &hum, &press)
+	_ = repo.InsertReading("1", time.Now(), &temp, &hum, &press, nil, nil)
 }
