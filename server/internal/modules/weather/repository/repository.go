@@ -34,7 +34,7 @@ type WeatherRepository interface {
 	GetLatestReadings(stationID string, limit int) ([]types.Reading, error)
 	GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error)
 	GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error)
-	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64) error
+	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, runCount *uint32, readingID *uint32) error
 }
 
 type repositoryImpl struct {
@@ -124,14 +124,14 @@ func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 	return out, rows.Err()
 }
 
-func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64) error {
+func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, runCount *uint32, readingID *uint32) error {
 	tsStr := ts.UTC().Format(time.RFC3339Nano)
-	
+
 	// Resolve station ID - stationID might be a name or an ID string
 	// First try to parse as integer ID, if that fails, look up by name
 	var dbStationID int
 	var err error
-	
+
 	// Try parsing as integer first
 	if parsedID, parseErr := strconv.Atoi(stationID); parseErr == nil {
 		// It's a numeric ID, use it directly
@@ -150,40 +150,50 @@ func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperatu
 		}
 		slog.Debug("resolved station", "name", stationID, "id", dbStationID)
 	}
-	
+
 	// Validate humidity range (0-100) if provided
 	if humidity != nil {
 		if *humidity < 0 || *humidity > 100 {
 			return fmt.Errorf("humidity_pct out of range: %f (must be 0-100)", *humidity)
 		}
 	}
-	
+
 	// Validate pressure is positive if provided
 	if pressure != nil {
 		if *pressure <= 0 {
 			return fmt.Errorf("pressure_hpa must be positive: %f", *pressure)
 		}
 	}
-	
+
 	var tempVal interface{}
 	if temperature != nil {
 		tempVal = *temperature
 	}
-	
+
 	var humidityVal interface{}
 	if humidity != nil {
 		humidityVal = *humidity
 	}
-	
+
 	var pressureVal interface{}
 	if pressure != nil {
 		pressureVal = *pressure
 	}
-	
-	_, err = r.db.Exec(insertReadingSQL, dbStationID, tsStr, tempVal, humidityVal, pressureVal)
+
+	var runCountVal interface{}
+	if runCount != nil {
+		runCountVal = *runCount
+	}
+
+	var readingIDVal interface{}
+	if readingID != nil {
+		readingIDVal = *readingID
+	}
+
+	_, err = r.db.Exec(insertReadingSQL, dbStationID, tsStr, tempVal, humidityVal, pressureVal, runCountVal, readingIDVal)
 	if err != nil {
 		return fmt.Errorf("insert reading: %w", err)
 	}
-	
+
 	return nil
 }

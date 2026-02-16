@@ -4,11 +4,15 @@
  * Advertises BME280 sensor data via BLE manufacturer data in the format
  * expected by the gateway:
  * - Magic: 0x01, 0xD0
- * - device_id: uint32 (little-endian)
+ * - device_id: uint16 (little-endian, lower 16 bits of uint32)
+ * - run_count: uint32 (little-endian)
  * - reading_id: uint32 (little-endian)
  * - temperature: float32 (little-endian)
  * - pressure: float32 (little-endian)
  * - humidity: float32 (little-endian)
+ * 
+ * Note: device_id is stored and passed as uint32_t internally, but only
+ * the lower 16 bits (0xFFFF) are transmitted in the BLE advertisement.
  */
 
 #ifndef BLE_ADVERTISE_H
@@ -33,17 +37,18 @@ typedef struct {
 
 /**
  * Initialize BLE advertising
- * @param device_id Unique device identifier (will be advertised in manufacturer data)
+ * @param device_id Unique device identifier (uint32_t, only lower 16 bits will be advertised)
  * @return 0 on success, negative on error
  */
 int ble_advertise_init(uint32_t device_id);
 
 /**
  * Update advertisement with new sensor data
+ * @param run_count Current run count
  * @param data Sensor readings (temperature, pressure, humidity)
  * @return 0 on success, negative on error
  */
-int ble_advertise_update(sensor_data_t *data);
+int ble_advertise_update(uint32_t run_count, sensor_data_t *data);
 
 /**
  * Deinitialize BLE advertising

@@ -67,6 +67,14 @@ func formatOptInt(p *int) string {
 	return fmt.Sprintf("%d", *p)
 }
 
+// formatOptUint32 formats an optional uint32 for logging; returns "-" if nil.
+func formatOptUint32(p *uint32) string {
+	if p == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%d", *p)
+}
+
 // registerMQTTHandler sets up the weather module's MQTT message handler
 func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.WeatherRepository) {
 	subscriber.SetMessageHandler(func(msg mqtt.Message) error {
@@ -86,7 +94,8 @@ func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.We
 			"humidity", formatOptFloat(telemetry.Humidity, "%"),
 			"pressure", formatOptFloat(telemetry.Pressure, "hPa"),
 			"battery", formatOptFloat(telemetry.Battery, "V"),
-			"sequence", formatOptInt(telemetry.Sequence),
+			"run_count", formatOptUint32(telemetry.RunCount),
+			"reading_id", formatOptUint32(telemetry.ReadingID),
 		)
 
 		err = repo.InsertReading(
@@ -95,6 +104,8 @@ func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.We
 			telemetry.Temperature,
 			telemetry.Humidity,
 			telemetry.Pressure,
+			telemetry.RunCount,
+			telemetry.ReadingID,
 		)
 
 		if err != nil {

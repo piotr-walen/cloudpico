@@ -10,5 +10,6 @@ type Telemetry struct {
 	Humidity    *float64  `json:"humidity_pct,omitempty"`
 	Pressure    *float64  `json:"pressure_hpa,omitempty"`
 	Battery     *float64  `json:"battery_v,omitempty"`
-	Sequence    *int      `json:"sequence,omitempty"`
+	RunCount    *uint32   `json:"run_count,omitempty"`
+	ReadingID   *uint32   `json:"reading_id,omitempty"`
 }

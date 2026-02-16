@@ -1,10 +1,10 @@
 /**
  * BME280 I2C Driver for Raspberry Pi Pico
  * Using Bosch Sensortec BME280_SensorAPI (C, portable)
- * 
+ *
  * NOTE: Ensure the device is capable of being driven at 3.3v NOT 5v. The Pico
  * GPIO (and therefore I2C) cannot be used at 5v.
- * 
+ *
  * PIN CONNECTIONS (Raspberry Pi Pico):
  * ====================================
  * Pico Pin  | GPIO  | Function | BME280 Pin
@@ -13,14 +13,14 @@
  * Pin 22    | GP17  | SCL      | SCL
  * Pin 36    | 3V3   | Power    | VCC/VIN
  * Pin 38    | GND   | Ground   | GND
- * 
+ *
  * Note: Using custom pins GP16 (SDA) and GP17 (SCL)
  *       Default pins would be GP4/GP5, but changed to GP16/GP17
- * 
+ *
  * Alternative I2C pins (if needed):
  * - I2C0: GP0/GP1, GP4/GP5, GP8/GP9, GP12/GP13, GP16/GP17, GP20/GP21
  * - I2C1: GP2/GP3, GP6/GP7, GP10/GP11, GP14/GP15, GP18/GP19, GP22/GP23
- * 
+ *
  * BME280 I2C Address:
  * - 0x76 if SDO pin is connected to GND
  * - 0x77 if SDO pin is connected to VCC
@@ -34,25 +34,20 @@
 #include "bme280.h"
 #include "bme280_pico_i2c.h"
 #include "ble_advertise.h"
-
-// Pico W devices need CYW43 for BLE
-#ifdef CYW43_WL_GPIO_LED_PIN
+#include "flash_counter.h"
 #include "pico/cyw43_arch.h"
 #include "pico/async_context.h"
-#endif
 
 // BME280 I2C address (can be 0x76 or 0x77 depending on SDO pin)
 #define BME280_ADDR _u(0x76)
 
 // Custom I2C pin configuration
 // Using GP16 (SDA) and GP17 (SCL) instead of default GP4/GP5
-#define I2C_SDA_PIN 16   // GP16 (Pin 21) - SDA (Serial Data)
-#define I2C_SCL_PIN 17   // GP17 (Pin 22) - SCL (Serial Clock)
-
-
+#define I2C_SDA_PIN 16 // GP16 (Pin 21) - SDA (Serial Data)
+#define I2C_SCL_PIN 17 // GP17 (Pin 22) - SCL (Serial Clock)
 
 // External LED on GP0 (Physical Pin 1)
-#define LED_PIN 0   // GP0 (Pin 1) - External LED
+#define LED_PIN 0 // GP0 (Pin 1) - External LED
 
 #ifndef DEVICE_ID
 #define DEVICE_ID 0x00000000
@@ -62,41 +57,49 @@
 #define POLL_INTERVAL_MS 10000
 #endif
 
+#ifndef ADVERTISEMENT_INTERVAL_MS
+#define ADVERTISEMENT_INTERVAL_MS 5000
+#endif
+
 // Initialize external LED on GP0
-static void led_init(void) {
+static void led_init(void)
+{
     gpio_init(LED_PIN);
     gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 0);  // Start with LED off
+    gpio_put(LED_PIN, 0); // Start with LED off
 }
 
 // Set LED state (true = on, false = off)
-static void led_set(bool on) {
+static void led_set(bool on)
+{
     gpio_put(LED_PIN, on);
 }
 
 // Print diagnostics and halt in an infinite noop loop (no return).
-static void noop_loop(void) {
-    while (1) {
-        __asm volatile ("nop");
+static void noop_loop(void)
+{
+    while (1)
+    {
+        __asm volatile("nop");
     }
 }
 
-int main() {
+int main()
+{
     stdio_init_all();
-    
+
     // Wait for USB serial to be ready (important for debugging)
     sleep_ms(3000);
 
-#if !defined(i2c_default)
-    #warning i2c / bme280_i2c example requires a board with I2C support
-    puts("I2C not available");
-    return 0;
-#else
     int8_t rslt;
     struct bme280_dev dev;
     struct bme280_data comp_data;
     struct bme280_pico_i2c_context i2c_ctx;
     uint32_t req_delay;
+    uint32_t run_count;
+
+    flash_counter_increment_and_store(&run_count);
+    printf("Run count = %lu\n", (unsigned long)run_count);
 
     // Initialize external LED on GP0
     led_init();
@@ -122,7 +125,8 @@ int main() {
 
     // Initialize the sensor
     rslt = bme280_init(&dev);
-    if (rslt != BME280_OK) {
+    if (rslt != BME280_OK)
+    {
         printf("ERROR: Failed to initialize BME280 sensor. Error code: %d\n", rslt);
         printf("ERROR: Check I2C connections (SDA=GP%d, SCL=GP%d) and sensor power\n", I2C_SDA_PIN, I2C_SCL_PIN);
         printf("ERROR: Program will exit. Press reset to retry.\n");
@@ -141,7 +145,8 @@ int main() {
     settings.standby_time = BME280_STANDBY_TIME_0_5_MS;
 
     rslt = bme280_set_sensor_settings(BME280_SEL_ALL_SETTINGS, &settings, &dev);
-    if (rslt != BME280_OK) {
+    if (rslt != BME280_OK)
+    {
         printf("ERROR: Failed to set sensor settings. Error code: %d\n", rslt);
         printf("ERROR: Program will exit. Press reset to retry.\n");
         noop_loop();
@@ -149,7 +154,8 @@ int main() {
 
     // Calculate measurement delay
     rslt = bme280_cal_meas_delay(&req_delay, &settings);
-    if (rslt != BME280_OK) {
+    if (rslt != BME280_OK)
+    {
         printf("ERROR: Failed to calculate measurement delay. Error code: %d\n", rslt);
         printf("ERROR: Program will exit. Press reset to retry.\n");
         noop_loop();
@@ -157,87 +163,165 @@ int main() {
 
     // Set sensor to normal mode
     rslt = bme280_set_sensor_mode(BME280_POWERMODE_NORMAL, &dev);
-    if (rslt != BME280_OK) {
+    if (rslt != BME280_OK)
+    {
         printf("ERROR: Failed to set sensor mode. Error code: %d\n", rslt);
         printf("ERROR: Program will exit. Press reset to retry.\n");
         noop_loop();
     }
 
     printf("Sensor configured. Measurement delay: %lu us\n", req_delay);
-    
-    // Initialize BLE advertising (only on Pico W)
-    #ifdef CYW43_WL_GPIO_LED_PIN
-    printf("Initializing BLE advertising...\n");
-    int rc = ble_advertise_init(DEVICE_ID);
-    if (rc != 0) {
-        printf("Warning: BLE advertising initialization failed (code: %d). Continuing without BLE.\n", rc);
-    } else {
-        printf("BLE advertising initialized successfully.\n");
-    }
-    #else
-    printf("Note: BLE not available (requires Pico W). Continuing with sensor readings only.\n");
-    #endif
-    
+
+
     printf("Starting sensor readings...\n\n");
 
     // Wait for sensor to stabilize
     sleep_ms(250);
 
-    // Timing for sensor readings (every 1 second)
+    // Timing for sensor readings (every POLL_INTERVAL_MS)
     absolute_time_t next_sensor_read = make_timeout_time_ms(POLL_INTERVAL_MS);
+    absolute_time_t ble_off_time = nil_time; // When to turn off BLE (nil_time = not set)
     bool led_state = false;
+    bool ble_enabled = false;
+    bool ble_initializing = false; // Track if BLE is currently initializing
+    bool has_pending_sensor_data = false;  // Track if we have sensor data waiting for BLE
+    sensor_data_t pending_sensor_data = {0};  // Store latest sensor data
+    uint32_t pending_run_count = 0;
 
-    while (1) {
+    while (1)
+    {
+        // Determine the next timeout (either sensor read or BLE turn-off)
+        absolute_time_t next_timeout = next_sensor_read;
+        if (!is_nil_time(ble_off_time) && absolute_time_diff_us(get_absolute_time(), ble_off_time) < absolute_time_diff_us(get_absolute_time(), next_sensor_read))
+        {
+            next_timeout = ble_off_time;
+        }
+
         // Poll async context for BLE events (required for Pico W with BLE)
-        // For Pico W, cyw43_arch_async_context() is available
-        #ifdef CYW43_WL_GPIO_LED_PIN
-        async_context_poll(cyw43_arch_async_context());
-        async_context_wait_for_work_until(cyw43_arch_async_context(), next_sensor_read);
-        #else
-        // For regular Pico without BLE, just sleep until next sensor read
-        sleep_until(next_sensor_read);
-        #endif
+        // Poll if BLE is enabled, initializing, or if we're waiting to turn it off
+        if (ble_enabled || ble_initializing || !is_nil_time(ble_off_time))
+        {
+            async_context_poll(cyw43_arch_async_context());
+            async_context_wait_for_work_until(cyw43_arch_async_context(), next_timeout);
+        }
+        else
+        {
+            // BLE is off, just sleep until next event
+            sleep_until(next_timeout);
+        }
+
+        // Check if it's time to turn off BLE
+        if (!is_nil_time(ble_off_time) && time_reached(ble_off_time))
+        {
+            if (ble_advertise_is_ready())
+            {
+                ble_advertise_deinit();
+                ble_enabled = false;
+            }
+            ble_initializing = false;
+            ble_off_time = nil_time;
+            printf("BLE: Turned off after advertisement period\n");
+        }
+
+        // Check if BLE initialization completed
+        if (ble_initializing && ble_advertise_is_ready())
+        {
+            ble_initializing = false;
+            ble_enabled = true;
+            
+            // If we have pending sensor data, update BLE immediately (this will enable advertising)
+            if (has_pending_sensor_data) {
+                printf("BLE: Updating with pending sensor data...\n");
+                int rc = ble_advertise_update(pending_run_count, &pending_sensor_data);
+                if (rc == 0) {
+                    has_pending_sensor_data = false;
+                    // Start timer after advertising is enabled
+                    if (is_nil_time(ble_off_time)) {
+                        ble_off_time = make_timeout_time_ms(ADVERTISEMENT_INTERVAL_MS);
+                        printf("BLE: Timer started, will turn off in %d ms\n", ADVERTISEMENT_INTERVAL_MS);
+                    }
+                } else {
+                    printf("BLE: Update failed with code %d\n", rc);
+                }
+            } else {
+                printf("BLE: No pending sensor data, waiting for next reading...\n");
+            }
+        }
 
         // Check if it's time to read sensor
-        if (time_reached(next_sensor_read)) {
+        if (time_reached(next_sensor_read))
+        {
             // Toggle LED to show activity
             led_state = !led_state;
             led_set(led_state);
 
             // Read compensated sensor data
             rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
-            
-            if (rslt == BME280_OK) {
+
+            if (rslt == BME280_OK)
+            {
                 // Convert sensor data to standard units
                 float temperature, pressure, humidity;
-                #ifdef BME280_DOUBLE_ENABLE
+
                 temperature = comp_data.temperature;
-                pressure = comp_data.pressure / 100.0f;  // Convert Pa to hPa
+                pressure = comp_data.pressure / 100.0f; // Convert Pa to hPa
                 humidity = comp_data.humidity;
-                #else
-                temperature = comp_data.temperature / 100.0f;
-                pressure = comp_data.pressure / 100.0f;  // Convert Pa to hPa
-                humidity = comp_data.humidity / 1024.0f;
-                #endif
-                
+
                 // Print results
                 printf("Temperature: %.2f C\n", temperature);
                 printf("Pressure:    %.3f kPa\n", pressure);
                 printf("Humidity:    %.2f %%\n", humidity);
                 printf("---\n");
-                
-                // Update BLE advertisement with sensor data (only on Pico W)
-                #ifdef CYW43_WL_GPIO_LED_PIN
-                if (ble_advertise_is_ready()) {
-                    sensor_data_t sensor_data = {
-                        .temperature = temperature,
-                        .pressure = pressure,
-                        .humidity = humidity
-                    };
-                    ble_advertise_update(&sensor_data);
+
+                // Initialize BLE if not already enabled or initializing
+                if (!ble_enabled && !ble_initializing)
+                {
+                    printf("BLE: Initializing for advertisement period...\n");
+                    int rc = ble_advertise_init(DEVICE_ID);
+                    if (rc != 0)
+                    {
+                        printf("Warning: BLE advertising initialization failed (code: %d). Skipping BLE.\n", rc);
+                    }
+                    else
+                    {
+                        ble_initializing = true;
+                        printf("BLE: Initialization started, waiting for BTstack...\n");
+                    }
                 }
-                #endif
-            } else {
+
+                // Update BLE advertisement with sensor data if ready, or store for later
+                sensor_data_t sensor_data = {
+                    .temperature = temperature,
+                    .pressure = pressure,
+                    .humidity = humidity
+                };
+                
+                if (ble_advertise_is_ready())
+                {
+                    printf("BLE: Updating advertisement with sensor data...\n");
+                    int rc = ble_advertise_update(run_count, &sensor_data);
+                    if (rc == 0) {
+                        has_pending_sensor_data = false;
+                        // Start timer when advertising is enabled (first update)
+                        if (is_nil_time(ble_off_time)) {
+                            ble_off_time = make_timeout_time_ms(ADVERTISEMENT_INTERVAL_MS);
+                            printf("BLE: Timer started, will turn off in %d ms\n", ADVERTISEMENT_INTERVAL_MS);
+                        }
+                    } else {
+                        printf("BLE: Update failed with code %d\n", rc);
+                    }
+                }
+                else
+                {
+                    // BLE not ready yet, store data for when it becomes ready
+                    printf("BLE: Not ready yet, storing sensor data for later...\n");
+                    pending_sensor_data = sensor_data;
+                    pending_run_count = run_count;
+                    has_pending_sensor_data = true;
+                }
+            }
+            else
+            {
                 printf("Failed to read sensor data. Error code: %d\n", rslt);
             }
 
@@ -245,5 +329,4 @@ int main() {
             next_sensor_read = make_timeout_time_ms(POLL_INTERVAL_MS);
         }
     }
-#endif
 }
