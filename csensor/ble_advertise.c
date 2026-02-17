@@ -109,8 +109,8 @@ static void build_adv_data(uint32_t dev_id, uint32_t run_count, uint32_t read_id
     *p++ = (uint8_t)(BLE_COMPANY_ID & 0xFF);
     *p++ = (uint8_t)((BLE_COMPANY_ID >> 8) & 0xFF);
     // Payload
-    memcpy(p, mfg_data, 16);
-    p += 16;
+    memcpy(p, mfg_data, 17);
+    p += 17;
     
     adv_data_len = p - adv_data;
     
