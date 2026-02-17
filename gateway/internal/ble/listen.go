@@ -104,14 +104,14 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 			
 			// Extract payload: Company ID may or may not be included by the BLE library
 			// Expected formats:
-			// 1. Company ID already stripped: payload starts with magic (16 bytes)
-			// 2. Company ID included: Company ID (2 bytes) + payload (16 bytes) = 18 bytes total
+			// 1. Company ID already stripped: payload starts with magic (17 bytes)
+			// 2. Company ID included: Company ID (2 bytes) + payload (17 bytes) = 19 bytes total
 			var payload []byte
 			if len(md.Data) >= 2 && hasPrefix(md.Data, l.opts.Filter.ManufacturerDataPref) {
 				// Magic bytes at start - Company ID already stripped
 				payload = md.Data
 				slog.Debug("ble: magic at start, using data as-is", "payload_len", len(payload))
-			} else if len(md.Data) >= 18 && hasPrefix(md.Data[2:], l.opts.Filter.ManufacturerDataPref) {
+			} else if len(md.Data) >= 19 && hasPrefix(md.Data[2:], l.opts.Filter.ManufacturerDataPref) {
 				// Magic bytes at offset 2 - Company ID included, strip it
 				payload = md.Data[2:]
 				slog.Debug("ble: magic at offset 2, stripped Company ID", "payload_len", len(payload))

@@ -6,15 +6,16 @@
  * - Magic: 0x01, 0xD0 (2 bytes)
  * - device_id: uint16 (little-endian, lower 16 bits of uint32) (2 bytes)
  * - run_count16: uint16 (little-endian, lower 16 bits of uint32) (2 bytes)
- * - seq16: uint16 (little-endian, lower 16 bits of uint32) (2 bytes)
+ * - seq24: uint24 (little-endian, lower 24 bits of uint32) (3 bytes)
  * - temperature: int16 scaled by 100 (0.01°C resolution) (2 bytes)
  * - pressure: uint16 scaled by 10 (0.1 kPa resolution) (2 bytes)
  * - humidity: uint16 scaled by 100 (0.01% resolution) (2 bytes)
  * - vbat: uint16 scaled by 1000 (0.001V resolution) (2 bytes)
- * Total: 16 bytes
+ * Total: 17 bytes
  * 
- * Note: device_id, run_count, and reading_id are stored and passed as uint32_t internally,
+ * Note: device_id and run_count are stored and passed as uint32_t internally,
  * but only the lower 16 bits (0xFFFF) are transmitted in the BLE advertisement.
+ * reading_id is stored as uint32_t internally, but only the lower 24 bits (0xFFFFFF) are transmitted.
  */
 
 #ifndef BLE_ADVERTISE_H

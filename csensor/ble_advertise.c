@@ -34,7 +34,7 @@ static uint8_t adv_data_len = 0;
 
 /**
  * Build manufacturer data payload
- * Format: magic (2) + device_id (2) + run_count16 (2) + seq16 (2) + temp (2) + pressure (2) + humidity (2) + vbat (2) = 16 bytes
+ * Format: magic (2) + device_id (2) + run_count16 (2) + seq24 (3) + temp (2) + pressure (2) + humidity (2) + vbat (2) = 17 bytes
  * 
  * Note: dev_id is uint32_t but only the lower 16 bits are transmitted in the BLE payload.
  * Temperature: int16_t scaled by 100 (0.01°C resolution)
@@ -60,10 +60,11 @@ static void build_manufacturer_data(uint8_t *buffer, uint32_t dev_id, uint32_t r
     *p++ = (uint8_t)(run_count_16 & 0xFF);
     *p++ = (uint8_t)((run_count_16 >> 8) & 0xFF);
     
-    // Reading ID / Sequence (little-endian uint16) - extract lower 16 bits
-    uint16_t read_id_16 = (uint16_t)(read_id & 0xFFFF);
-    *p++ = (uint8_t)(read_id_16 & 0xFF);
-    *p++ = (uint8_t)((read_id_16 >> 8) & 0xFF);
+    // Reading ID / Sequence (little-endian uint24) - extract lower 24 bits
+    uint32_t read_id_24 = read_id & 0xFFFFFF;
+    *p++ = (uint8_t)(read_id_24 & 0xFF);
+    *p++ = (uint8_t)((read_id_24 >> 8) & 0xFF);
+    *p++ = (uint8_t)((read_id_24 >> 16) & 0xFF);
     
     // Temperature (little-endian int16, scaled by 100: 0.01°C resolution)
     int16_t temp_scaled = (int16_t)(temp * 100.0f);
@@ -98,11 +99,11 @@ static void build_adv_data(uint32_t dev_id, uint32_t run_count, uint32_t read_id
     *p++ = BLUETOOTH_DATA_TYPE_FLAGS;
     *p++ = 0x06;  // Flags value
     
-    // Manufacturer data: Company ID (2 bytes) + payload (16 bytes) = 18 bytes total
-    uint8_t mfg_data[16];
+    // Manufacturer data: Company ID (2 bytes) + payload (17 bytes) = 19 bytes total
+    uint8_t mfg_data[17];
     build_manufacturer_data(mfg_data, dev_id, run_count, read_id, temp, pressure, humidity, vbat);
     
-    *p++ = 19;  // Length: 1 (type) + 2 (Company ID) + 16 (payload)
+    *p++ = 20;  // Length: 1 (type) + 2 (Company ID) + 17 (payload)
     *p++ = BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA;
     // Company ID (little-endian)
     *p++ = (uint8_t)(BLE_COMPANY_ID & 0xFF);

@@ -6,12 +6,12 @@ import (
 )
 
 // Sensor payload format (little-endian): magic 0x01 0xD0, device_id uint16,
-// run_count16 uint16, seq16 uint16, temperature int16 (scaled by 100), pressure uint16 (scaled by 10),
-// humidity uint16 (scaled by 100), vbat uint16 (scaled by 1000) (16 bytes total).
+// run_count16 uint16, seq24 uint24, temperature int16 (scaled by 100), pressure uint16 (scaled by 10),
+// humidity uint16 (scaled by 100), vbat uint16 (scaled by 1000) (17 bytes total).
 const (
 	sensorPayloadMagic0 = 0x01
 	sensorPayloadMagic1 = 0xD0
-	sensorPayloadLen    = 16
+	sensorPayloadLen    = 17
 )
 
 // SensorReading is a parsed BLE sensor advertisement (device_id + T/P/H/V + reading_id for dedup).
@@ -37,18 +37,19 @@ func ParseSensorPayload(data []byte) (*SensorReading, error) {
 	}
 	deviceID := uint32(binary.LittleEndian.Uint16(data[2:4]))
 	runCount := uint32(binary.LittleEndian.Uint16(data[4:6]))
-	readingID := uint32(binary.LittleEndian.Uint16(data[6:8]))
+	// Reading ID: uint24 (little-endian, 3 bytes)
+	readingID := uint32(data[6]) | uint32(data[7])<<8 | uint32(data[8])<<16
 	// Temperature: int16 scaled by 100 (0.01°C resolution)
-	tempScaled := int16(binary.LittleEndian.Uint16(data[8:10]))
+	tempScaled := int16(binary.LittleEndian.Uint16(data[9:11]))
 	temp := float64(tempScaled) / 100.0
 	// Pressure: uint16 scaled by 10 (0.1 kPa resolution)
-	pressScaled := binary.LittleEndian.Uint16(data[10:12])
+	pressScaled := binary.LittleEndian.Uint16(data[11:13])
 	press := float64(pressScaled) / 10.0
 	// Humidity: uint16 scaled by 100 (0.01% resolution)
-	humScaled := binary.LittleEndian.Uint16(data[12:14])
+	humScaled := binary.LittleEndian.Uint16(data[13:15])
 	hum := float64(humScaled) / 100.0
 	// Battery voltage: uint16 scaled by 1000 (0.001V resolution)
-	vbatScaled := binary.LittleEndian.Uint16(data[14:16])
+	vbatScaled := binary.LittleEndian.Uint16(data[15:17])
 	vbat := float64(vbatScaled) / 1000.0
 	return &SensorReading{
 		DeviceID:    deviceID,
