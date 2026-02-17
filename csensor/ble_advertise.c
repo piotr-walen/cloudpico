@@ -34,12 +34,16 @@ static uint8_t adv_data_len = 0;
 
 /**
  * Build manufacturer data payload
- * Format: magic (2) + device_id (2) + run_count (4) + reading_id (4) + temp (4) + pressure (4) + humidity (4) = 24 bytes
+ * Format: magic (2) + device_id (2) + run_count16 (2) + seq16 (2) + temp (2) + pressure (2) + humidity (2) + vbat (2) = 16 bytes
  * 
  * Note: dev_id is uint32_t but only the lower 16 bits are transmitted in the BLE payload.
+ * Temperature: int16_t scaled by 100 (0.01°C resolution)
+ * Pressure: uint16_t scaled by 10 (0.1 kPa resolution)
+ * Humidity: uint16_t scaled by 100 (0.01% resolution)
+ * Voltage: uint16_t scaled by 1000 (0.001V resolution)
  */
 static void build_manufacturer_data(uint8_t *buffer, uint32_t dev_id, uint32_t run_count, uint32_t read_id, 
-                                     float temp, float pressure, float humidity) {
+                                     float temp, float pressure, float humidity, float vbat) {
     uint8_t *p = buffer;
     
     // Magic bytes
@@ -51,45 +55,42 @@ static void build_manufacturer_data(uint8_t *buffer, uint32_t dev_id, uint32_t r
     *p++ = (uint8_t)(dev_id_16 & 0xFF);
     *p++ = (uint8_t)((dev_id_16 >> 8) & 0xFF);
     
-    // Run count (little-endian uint32)
-    *p++ = (uint8_t)(run_count & 0xFF);
-    *p++ = (uint8_t)((run_count >> 8) & 0xFF);
-    *p++ = (uint8_t)((run_count >> 16) & 0xFF);
-    *p++ = (uint8_t)((run_count >> 24) & 0xFF);
+    // Run count (little-endian uint16) - extract lower 16 bits
+    uint16_t run_count_16 = (uint16_t)(run_count & 0xFFFF);
+    *p++ = (uint8_t)(run_count_16 & 0xFF);
+    *p++ = (uint8_t)((run_count_16 >> 8) & 0xFF);
     
-    // Reading ID (little-endian uint32)
-    *p++ = (uint8_t)(read_id & 0xFF);
-    *p++ = (uint8_t)((read_id >> 8) & 0xFF);
-    *p++ = (uint8_t)((read_id >> 16) & 0xFF);
-    *p++ = (uint8_t)((read_id >> 24) & 0xFF);
+    // Reading ID / Sequence (little-endian uint16) - extract lower 16 bits
+    uint16_t read_id_16 = (uint16_t)(read_id & 0xFFFF);
+    *p++ = (uint8_t)(read_id_16 & 0xFF);
+    *p++ = (uint8_t)((read_id_16 >> 8) & 0xFF);
     
-    // Temperature (little-endian float32)
-    uint32_t temp_bits = *(uint32_t*)&temp;
-    *p++ = (uint8_t)(temp_bits & 0xFF);
-    *p++ = (uint8_t)((temp_bits >> 8) & 0xFF);
-    *p++ = (uint8_t)((temp_bits >> 16) & 0xFF);
-    *p++ = (uint8_t)((temp_bits >> 24) & 0xFF);
+    // Temperature (little-endian int16, scaled by 100: 0.01°C resolution)
+    int16_t temp_scaled = (int16_t)(temp * 100.0f);
+    *p++ = (uint8_t)(temp_scaled & 0xFF);
+    *p++ = (uint8_t)((temp_scaled >> 8) & 0xFF);
     
-    // Pressure (little-endian float32)
-    uint32_t press_bits = *(uint32_t*)&pressure;
-    *p++ = (uint8_t)(press_bits & 0xFF);
-    *p++ = (uint8_t)((press_bits >> 8) & 0xFF);
-    *p++ = (uint8_t)((press_bits >> 16) & 0xFF);
-    *p++ = (uint8_t)((press_bits >> 24) & 0xFF);
+    // Pressure (little-endian uint16, scaled by 10: 0.1 kPa resolution)
+    uint16_t press_scaled = (uint16_t)(pressure * 10.0f);
+    *p++ = (uint8_t)(press_scaled & 0xFF);
+    *p++ = (uint8_t)((press_scaled >> 8) & 0xFF);
     
-    // Humidity (little-endian float32)
-    uint32_t hum_bits = *(uint32_t*)&humidity;
-    *p++ = (uint8_t)(hum_bits & 0xFF);
-    *p++ = (uint8_t)((hum_bits >> 8) & 0xFF);
-    *p++ = (uint8_t)((hum_bits >> 16) & 0xFF);
-    *p++ = (uint8_t)((hum_bits >> 24) & 0xFF);
+    // Humidity (little-endian uint16, scaled by 100: 0.01% resolution)
+    uint16_t hum_scaled = (uint16_t)(humidity * 100.0f);
+    *p++ = (uint8_t)(hum_scaled & 0xFF);
+    *p++ = (uint8_t)((hum_scaled >> 8) & 0xFF);
+    
+    // Battery voltage (little-endian uint16, scaled by 1000: 0.001V resolution)
+    uint16_t vbat_scaled = (uint16_t)(vbat * 1000.0f);
+    *p++ = (uint8_t)(vbat_scaled & 0xFF);
+    *p++ = (uint8_t)((vbat_scaled >> 8) & 0xFF);
 }
 
 /**
  * Build advertisement data packet
  */
 static void build_adv_data(uint32_t dev_id, uint32_t run_count, uint32_t read_id, 
-                           float temp, float pressure, float humidity) {
+                           float temp, float pressure, float humidity, float vbat) {
     uint8_t *p = adv_data;
     
     // Flags: general discoverable, BR/EDR not supported
@@ -97,18 +98,18 @@ static void build_adv_data(uint32_t dev_id, uint32_t run_count, uint32_t read_id
     *p++ = BLUETOOTH_DATA_TYPE_FLAGS;
     *p++ = 0x06;  // Flags value
     
-    // Manufacturer data: Company ID (2 bytes) + payload (24 bytes) = 26 bytes total
-    uint8_t mfg_data[24];
-    build_manufacturer_data(mfg_data, dev_id, run_count, read_id, temp, pressure, humidity);
+    // Manufacturer data: Company ID (2 bytes) + payload (16 bytes) = 18 bytes total
+    uint8_t mfg_data[16];
+    build_manufacturer_data(mfg_data, dev_id, run_count, read_id, temp, pressure, humidity, vbat);
     
-    *p++ = 27;  // Length: 1 (type) + 2 (Company ID) + 24 (payload)
+    *p++ = 19;  // Length: 1 (type) + 2 (Company ID) + 16 (payload)
     *p++ = BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA;
     // Company ID (little-endian)
     *p++ = (uint8_t)(BLE_COMPANY_ID & 0xFF);
     *p++ = (uint8_t)((BLE_COMPANY_ID >> 8) & 0xFF);
     // Payload
-    memcpy(p, mfg_data, 24);
-    p += 24;
+    memcpy(p, mfg_data, 16);
+    p += 16;
     
     adv_data_len = p - adv_data;
     
@@ -144,7 +145,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                                           ADV_TYPE, 0, null_addr, 0x07, 0x00);
             
             // Set initial advertisement data (will be updated with sensor data before enabling)
-            build_adv_data(device_id, 0, reading_id, 0.0f, 0.0f, 0.0f);
+            build_adv_data(device_id, 0, reading_id, 0.0f, 0.0f, 0.0f, 0.0f);
             gap_advertisements_set_data(adv_data_len, adv_data);
             // Don't enable advertising yet - wait for sensor data update
             // gap_advertisements_enable(1);
@@ -227,7 +228,7 @@ int ble_advertise_start(uint32_t run_count, sensor_data_t *data) {
     reading_id++;
     
     // Build new advertisement data
-    build_adv_data(device_id, run_count, reading_id, data->temperature, data->pressure, data->humidity);
+    build_adv_data(device_id, run_count, reading_id, data->temperature, data->pressure, data->humidity, data->vbat);
     
     // Update advertisement data
     gap_advertisements_set_data(adv_data_len, adv_data);
@@ -236,11 +237,11 @@ int ble_advertise_start(uint32_t run_count, sensor_data_t *data) {
     if (!advertising_enabled) {
         gap_advertisements_enable(1);
         advertising_enabled = true;
-        printf("BLE: Advertising enabled with sensor data (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%)\n",
-               reading_id, data->temperature, data->pressure, data->humidity);
+        printf("BLE: Advertising enabled with sensor data (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%, V: %.3fV)\n",
+               reading_id, data->temperature, data->pressure, data->humidity, data->vbat);
     } else {
-        printf("BLE: Updated advertisement (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%)\n",
-               reading_id, data->temperature, data->pressure, data->humidity);
+        printf("BLE: Updated advertisement (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%, V: %.3fV)\n",
+               reading_id, data->temperature, data->pressure, data->humidity, data->vbat);
     }
     
     return 0;

@@ -28,7 +28,13 @@ func (c *weatherControllerImpl) handleStationsPartial(w http.ResponseWriter, r *
 			return
 		}
 		if len(latest) != 0 {
-			data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: &latest[0]})
+			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
+			data.Stations = append(data.Stations, views.StationReading{
+				StationID:         s.ID,
+				StationName:      s.Name,
+				Reading:          &latest[0],
+				BatteryPercentage: batteryPct,
+			})
 			continue
 		}
 		data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: nil})
@@ -68,7 +74,13 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 			return
 		}
 		if len(latest) != 0 {
-			data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: &latest[0]})
+			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
+			data.Stations = append(data.Stations, views.StationReading{
+				StationID:         s.ID,
+				StationName:      s.Name,
+				Reading:          &latest[0],
+				BatteryPercentage: batteryPct,
+			})
 			continue
 		}
 		data.Stations = append(data.Stations, views.StationReading{StationID: s.ID, StationName: s.Name, Reading: nil})

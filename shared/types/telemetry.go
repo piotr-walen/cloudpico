@@ -12,4 +12,5 @@ type Telemetry struct {
 	Battery     *float64  `json:"battery_v,omitempty"`
 	RunCount    *uint32   `json:"run_count,omitempty"`
 	ReadingID   *uint32   `json:"reading_id,omitempty"`
+	Vbat        *float64  `json:"vbat_v,omitempty"`
 }

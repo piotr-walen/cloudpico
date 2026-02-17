@@ -35,6 +35,7 @@
 #include "bme280_pico_i2c.h"
 #include "ble_advertise.h"
 #include "flash_counter.h"
+#include "battery_voltage.h"
 
 // BME280 I2C address (can be 0x76 or 0x77 depending on SDO pin)
 #define BME280_ADDR _u(0x76)
@@ -115,6 +116,11 @@ int main()
     }
 
     printf("BME280 initialized successfully.\n");
+    
+    // Initialize battery voltage ADC
+    battery_voltage_init();
+    printf("Battery voltage ADC initialized.\n");
+    
     printf("Starting sensor readings...\n\n");
 
     // Wait for sensor to stabilize
@@ -138,15 +144,20 @@ int main()
             continue;
         }
 
+        // Read battery voltage
+        float vbat = read_battery_voltage();
+        
         printf("Temperature: %.2f C\n", temperature);
         printf("Pressure:    %.3f kPa\n", pressure);
         printf("Humidity:    %.2f %%\n", humidity);
+        printf("Battery:     %.3f V\n", vbat);
         printf("---\n");
 
         sensor_data_t sensor_data = {
             .temperature = temperature,
             .pressure = pressure,
-            .humidity = humidity
+            .humidity = humidity,
+            .vbat = vbat
         };
 
         // 2. BLE init, wait ready (main loop), advertise, run (main loop), stop, deinit

@@ -104,14 +104,14 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 			
 			// Extract payload: Company ID may or may not be included by the BLE library
 			// Expected formats:
-			// 1. Company ID already stripped: payload starts with magic (24 bytes)
-			// 2. Company ID included: Company ID (2 bytes) + payload (24 bytes) = 26 bytes total
+			// 1. Company ID already stripped: payload starts with magic (16 bytes)
+			// 2. Company ID included: Company ID (2 bytes) + payload (16 bytes) = 18 bytes total
 			var payload []byte
 			if len(md.Data) >= 2 && hasPrefix(md.Data, l.opts.Filter.ManufacturerDataPref) {
 				// Magic bytes at start - Company ID already stripped
 				payload = md.Data
 				slog.Debug("ble: magic at start, using data as-is", "payload_len", len(payload))
-			} else if len(md.Data) >= 26 && hasPrefix(md.Data[2:], l.opts.Filter.ManufacturerDataPref) {
+			} else if len(md.Data) >= 18 && hasPrefix(md.Data[2:], l.opts.Filter.ManufacturerDataPref) {
 				// Magic bytes at offset 2 - Company ID included, strip it
 				payload = md.Data[2:]
 				slog.Debug("ble: magic at offset 2, stripped Company ID", "payload_len", len(payload))
@@ -135,21 +135,21 @@ func (l *Listener) Run(ctx context.Context, onMatch func(Match)) error {
 			}
 			
 			// Validate payload length
-			if len(payload) < 24 {
+			if len(payload) < sensorPayloadLen {
 				slog.Debug("ble: payload too short after extraction",
 					"payload_len", len(payload),
-					"expected", 24,
+					"expected", sensorPayloadLen,
 				)
 				continue
 			}
 			
-			// Trim to exactly 24 bytes if longer (shouldn't happen, but be safe)
-			if len(payload) > 24 {
+			// Trim to exactly sensorPayloadLen bytes if longer (shouldn't happen, but be safe)
+			if len(payload) > sensorPayloadLen {
 				slog.Debug("ble: payload longer than expected, trimming",
 					"payload_len", len(payload),
-					"expected", 24,
+					"expected", sensorPayloadLen,
 				)
-				payload = payload[:24]
+				payload = payload[:sensorPayloadLen]
 			}
 
 			obs.CompanyID = md.CompanyID
