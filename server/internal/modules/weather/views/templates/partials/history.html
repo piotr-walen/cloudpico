@@ -3,7 +3,6 @@
 <p class="history-station">{{ .StationName }}</p>
 {{ end }}
 <p class="history-range-label">{{ .RangeLabel }}</p>
-{{ template "partials/history-chart.html" . }}
 {{ if .Readings }}
 <ul class="history-list">
   {{ range .Readings }}
