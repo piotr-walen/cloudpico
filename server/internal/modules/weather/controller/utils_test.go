@@ -503,7 +503,7 @@ func parseCookieValue(value string) (stationID, rangeKey string, page int) {
 func Test_writeWeatherStateCookie(t *testing.T) {
 	t.Run("writes cookie with correct name and encoded value", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		writeWeatherStateCookie(w, "st1", "24h", 2)
+		writeWeatherStateCookie(w, "st1", "24h", 2, nil)
 		header := w.Header().Get("Set-Cookie")
 		if header == "" {
 			t.Fatal("Set-Cookie header missing")
@@ -532,7 +532,7 @@ func Test_writeWeatherStateCookie(t *testing.T) {
 
 	t.Run("invalid range key uses default", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		writeWeatherStateCookie(w, "st1", "invalid", 1)
+		writeWeatherStateCookie(w, "st1", "invalid", 1, nil)
 		c := w.Result().Cookies()[0]
 		_, rangeKey, page := parseCookieValue(c.Value)
 		if rangeKey != defaultHistoryRangeKey {
@@ -545,7 +545,7 @@ func Test_writeWeatherStateCookie(t *testing.T) {
 
 	t.Run("page less than 1 uses 1", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		writeWeatherStateCookie(w, "st1", "24h", 0)
+		writeWeatherStateCookie(w, "st1", "24h", 0, nil)
 		c := w.Result().Cookies()[0]
 		_, _, page := parseCookieValue(c.Value)
 		if page != 1 {
@@ -555,7 +555,7 @@ func Test_writeWeatherStateCookie(t *testing.T) {
 
 	t.Run("negative page uses 1", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		writeWeatherStateCookie(w, "x", "1h", -5)
+		writeWeatherStateCookie(w, "x", "1h", -5, nil)
 		c := w.Result().Cookies()[0]
 		_, _, page := parseCookieValue(c.Value)
 		if page != 1 {

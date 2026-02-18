@@ -1,2 +1,9 @@
 coverage.out
 /bin
+/tmp
+node_modules/
+*.log
+.npm
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

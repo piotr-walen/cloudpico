@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
+	"cloudpico-server/internal/modules/weather/types"
 	"cloudpico-server/internal/modules/weather/views"
 	"cloudpico-server/internal/utils"
 )
@@ -31,8 +33,8 @@ func (c *weatherControllerImpl) handleStationsPartial(w http.ResponseWriter, r *
 			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
 			data.Stations = append(data.Stations, views.StationReading{
 				StationID:         s.ID,
-				StationName:      s.Name,
-				Reading:          &latest[0],
+				StationName:       s.Name,
+				Reading:           &latest[0],
 				BatteryPercentage: batteryPct,
 			})
 			continue
@@ -77,8 +79,8 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
 			data.Stations = append(data.Stations, views.StationReading{
 				StationID:         s.ID,
-				StationName:      s.Name,
-				Reading:          &latest[0],
+				StationName:       s.Name,
+				Reading:           &latest[0],
 				BatteryPercentage: batteryPct,
 			})
 			continue
@@ -116,6 +118,17 @@ func (c *weatherControllerImpl) handleHistory(w http.ResponseWriter, r *http.Req
 	if selectedRangeKey == "" {
 		selectedRangeKey = defaultHistoryRangeKey
 	}
+	// Handle show_y_axes: read from query param, fallback to cookie, default to true
+	showYAxes := true
+	if s := r.URL.Query().Get("show_y_axes"); s != "" {
+		if b, err := strconv.ParseBool(s); err == nil {
+			showYAxes = b
+		} else if state.ShowYAxes != nil {
+			showYAxes = *state.ShowYAxes
+		}
+	} else if state.ShowYAxes != nil {
+		showYAxes = *state.ShowYAxes
+	}
 	opts := make([]views.StationOption, 0, len(stations))
 	for _, s := range stations {
 		opts = append(opts, views.StationOption{ID: s.ID, Name: s.Name})
@@ -124,8 +137,10 @@ func (c *weatherControllerImpl) handleHistory(w http.ResponseWriter, r *http.Req
 		Stations:          opts,
 		SelectedStationID: selectedID,
 		SelectedRangeKey:  selectedRangeKey,
+		ShowYAxes:         showYAxes,
 	}
-	writeWeatherStateCookie(w, selectedID, selectedRangeKey, state.Page)
+	showYAxesPtr := &showYAxes
+	writeWeatherStateCookie(w, selectedID, selectedRangeKey, state.Page, showYAxesPtr)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := views.RenderHistory(w, &data); err != nil {
 		slog.Error("history template render failed", "error", err)
@@ -254,24 +269,39 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		}
 	}
 
+	// Handle show_y_axes: read from query param, fallback to cookie, default to true
+	showYAxes := true
+	if s := r.URL.Query().Get("show_y_axes"); s != "" {
+		if b, err := strconv.ParseBool(s); err == nil {
+			showYAxes = b
+		} else if state.ShowYAxes != nil {
+			showYAxes = *state.ShowYAxes
+		}
+	} else if state.ShowYAxes != nil {
+		showYAxes = *state.ShowYAxes
+	}
+
 	stationID := requestStation
 	var stationName string
 	if stationID == "" {
 		if len(stations) == 0 {
 			data := views.HistoryData{
-				StationName: "",
-				StationID:   "",
-				RangeLabel:  rangeInfo.Label,
-				RangeKey:    resolvedRangeKey,
-				Readings:    nil,
-				CurrentPage: 1,
-				TotalPages:  1,
-				HasPrev:     false,
-				HasNext:     false,
-				PrevPage:    1,
-				NextPage:    2,
-				PageItems:   []views.PaginationItem{{Page: 1, Ellipsis: false}},
+				StationName:   "",
+				StationID:     "",
+				RangeLabel:    rangeInfo.Label,
+				RangeKey:      resolvedRangeKey,
+				Readings:      nil,
+				ChartReadings: nil,
+				CurrentPage:   1,
+				TotalPages:    1,
+				HasPrev:       false,
+				HasNext:       false,
+				PrevPage:      1,
+				NextPage:      2,
+				PageItems:     []views.PaginationItem{{Page: 1, Ellipsis: false}},
+				ShowYAxes:     showYAxes,
 			}
+			data.SetChartReadingsJSON() // Will set to "[]" for empty readings
 			var buf bytes.Buffer
 			if err := views.RenderHistoryPartial(&buf, &data); err != nil {
 				slog.Error("history partial render failed", "error", err)
@@ -324,21 +354,40 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 		return
 	}
 
-	data := views.HistoryData{
-		StationName: stationName,
-		StationID:   stationID,
-		RangeLabel:  rangeInfo.Label,
-		RangeKey:    resolvedRangeKey,
-		Readings:    readings,
-		CurrentPage: page,
-		TotalPages:  totalPages,
-		HasPrev:     page > 1,
-		HasNext:     page < totalPages,
-		PrevPage:    page - 1,
-		NextPage:    page + 1,
-		PageItems:   buildHistoryPageItems(totalPages, page),
+	// Fetch all readings for the chart (up to 10000 to avoid performance issues)
+	chartReadings, err := c.repository.GetReadings(stationID, from, now, 10000, 0)
+	if err != nil {
+		slog.Error("history: get chart readings failed", "station_id", stationID, "error", err)
+		// Continue with empty chart data
+		chartReadings = []types.Reading{}
+	} else {
+		slog.Debug("history: fetched chart readings", "station_id", stationID, "count", len(chartReadings), "from", from, "to", now)
 	}
-	writeWeatherStateCookie(w, stationID, resolvedRangeKey, page)
+
+	data := views.HistoryData{
+		StationName:   stationName,
+		StationID:     stationID,
+		RangeLabel:    rangeInfo.Label,
+		RangeKey:      resolvedRangeKey,
+		Readings:      readings,
+		ChartReadings: chartReadings,
+		CurrentPage:   page,
+		TotalPages:    totalPages,
+		HasPrev:       page > 1,
+		HasNext:       page < totalPages,
+		PrevPage:      page - 1,
+		NextPage:      page + 1,
+		PageItems:     buildHistoryPageItems(totalPages, page),
+		ShowYAxes:     showYAxes,
+	}
+	if err := data.SetChartReadingsJSON(); err != nil {
+		slog.Error("history: marshal chart readings JSON failed", "error", err)
+		// Continue anyway, chart just won't work
+	} else {
+		slog.Debug("history: chart readings JSON prepared", "readings_count", len(chartReadings), "json_length", len(data.ChartReadingsJSON))
+	}
+	showYAxesPtr := &showYAxes
+	writeWeatherStateCookie(w, stationID, resolvedRangeKey, page, showYAxesPtr)
 	var buf bytes.Buffer
 	if err := views.RenderHistoryPartial(&buf, &data); err != nil {
 		slog.Error("history partial render failed", "error", err)

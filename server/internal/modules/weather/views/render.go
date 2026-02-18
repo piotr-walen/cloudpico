@@ -2,6 +2,7 @@ package views
 
 import (
 	"cloudpico-server/internal/modules/weather/types"
+	"encoding/json"
 	"errors"
 	"html/template"
 	"io"
@@ -65,6 +66,7 @@ type HistoryParams struct {
 	Stations          []StationOption
 	SelectedStationID string
 	SelectedRangeKey  string
+	ShowYAxes         bool
 }
 
 func RenderHistory(w io.Writer, data *HistoryParams) error {
@@ -75,9 +77,9 @@ func RenderHistory(w io.Writer, data *HistoryParams) error {
 }
 
 type StationReading struct {
-	StationID        string
-	StationName      string
-	Reading          *types.Reading
+	StationID         string
+	StationName       string
+	Reading           *types.Reading
 	BatteryPercentage float64 // Calculated from Reading.BatteryV: 3.3V = 0%, 4.2V = 100%
 }
 type DashboardData struct {
@@ -92,18 +94,39 @@ type PaginationItem struct {
 
 // HistoryData is the view model for the history partial.
 type HistoryData struct {
-	StationName string
-	StationID   string // for pagination links
-	RangeLabel  string
-	RangeKey    string // for pagination links, e.g. "24h"
-	Readings    []types.Reading
-	CurrentPage int
-	TotalPages  int
-	HasPrev     bool
-	HasNext     bool
-	PrevPage    int
-	NextPage    int
-	PageItems   []PaginationItem // page numbers and ellipsis for the pagination bar
+	StationName       string
+	StationID         string // for pagination links
+	RangeLabel        string
+	RangeKey          string          // for pagination links, e.g. "24h"
+	Readings          []types.Reading // paginated readings for the list
+	ChartReadings     []types.Reading // all readings in range for the chart
+	ChartReadingsJSON template.JS     // JSON-encoded chart readings (template.JS prevents HTML escaping)
+	CurrentPage       int
+	TotalPages        int
+	HasPrev           bool
+	HasNext           bool
+	PrevPage          int
+	NextPage          int
+	PageItems         []PaginationItem // page numbers and ellipsis for the pagination bar
+	ShowYAxes         bool
+}
+
+// SetChartReadingsJSON marshals the ChartReadings slice to JSON and sets ChartReadingsJSON.
+// Ensures the result is always a JSON array (never null).
+// Uses template.JS to prevent HTML escaping in templates.
+func (d *HistoryData) SetChartReadingsJSON() error {
+	readings := d.ChartReadings
+	if readings == nil {
+		readings = []types.Reading{}
+	}
+	jsonBytes, err := json.Marshal(readings)
+	if err != nil {
+		return err
+	}
+	d.ChartReadingsJSON = template.JS(jsonBytes)
+	// Log for debugging (remove in production if needed)
+	// fmt.Printf("SetChartReadingsJSON: %d readings, JSON length: %d\n", len(readings), len(jsonBytes))
+	return nil
 }
 
 // RenderHistoryPartial executes only the history partial into w.
