@@ -145,19 +145,19 @@ int main()
         }
 
         // Read battery voltage
-        float vbat = read_battery_voltage();
+        float battery = read_battery_voltage();
         
         printf("Temperature: %.2f C\n", temperature);
         printf("Pressure:    %.3f kPa\n", pressure);
         printf("Humidity:    %.2f %%\n", humidity);
-        printf("Battery:     %.3f V\n", vbat);
+        printf("Battery:     %.3f V\n", battery);
         printf("---\n");
 
         sensor_data_t sensor_data = {
             .temperature = temperature,
             .pressure = pressure,
             .humidity = humidity,
-            .vbat = vbat
+            .battery = battery
         };
 
         // 2. BLE init, wait ready (main loop), advertise, run (main loop), stop, deinit

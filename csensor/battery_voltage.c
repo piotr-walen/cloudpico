@@ -14,7 +14,7 @@ void battery_voltage_init(void) {
 float read_battery_voltage(void) {
     // ADC on Pico is 12-bit: 0..4095 for 0..3.3V (approx, referenced to 3V3)
     const float adc_ref = 3.3f;
-    const float divider_ratio = 2.0f;  // 100k/100k divider => Vbat = Vadc * 2
+    const float divider_ratio = 2.0f;  // 100k/100k divider => battery = Vadc * 2
 
     // Simple averaging to reduce noise
     const int samples = 32;

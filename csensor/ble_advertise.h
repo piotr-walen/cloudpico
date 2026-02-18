@@ -10,7 +10,7 @@
  * - temperature: int16 scaled by 100 (0.01°C resolution) (2 bytes)
  * - pressure: uint16 scaled by 10 (0.1 kPa resolution) (2 bytes)
  * - humidity: uint16 scaled by 100 (0.01% resolution) (2 bytes)
- * - vbat: uint16 scaled by 1000 (0.001V resolution) (2 bytes)
+ * - battery: uint16 scaled by 1000 (0.001V resolution) (2 bytes)
  * Total: 17 bytes
  * 
  * Note: device_id and run_count are stored and passed as uint32_t internally,
@@ -37,7 +37,7 @@ typedef struct {
     float temperature;  // Celsius
     float pressure;     // kPa
     float humidity;     // %RH
-    float vbat;         // Battery voltage in volts
+    float battery;         // Battery voltage in volts
 } sensor_data_t;
 
 /**

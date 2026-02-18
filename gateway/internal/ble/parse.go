@@ -7,7 +7,7 @@ import (
 
 // Sensor payload format (little-endian): magic 0x01 0xD0, device_id uint16,
 // run_count16 uint16, seq24 uint24, temperature int16 (scaled by 100), pressure uint16 (scaled by 10),
-// humidity uint16 (scaled by 100), vbat uint16 (scaled by 1000) (17 bytes total).
+// humidity uint16 (scaled by 100), battery uint16 (scaled by 1000) (17 bytes total).
 const (
 	sensorPayloadMagic0 = 0x01
 	sensorPayloadMagic1 = 0xD0
@@ -22,7 +22,7 @@ type SensorReading struct {
 	Temperature float64
 	Pressure    float64
 	Humidity    float64
-	Vbat        float64
+	Battery     float64
 }
 
 // ParseSensorPayload parses manufacturer data from a Pico sensor advertisement.
@@ -32,7 +32,7 @@ func ParseSensorPayload(data []byte) (*SensorReading, error) {
 		return nil, fmt.Errorf("payload too short: got %d bytes, expected %d", len(data), sensorPayloadLen)
 	}
 	if data[0] != sensorPayloadMagic0 || data[1] != sensorPayloadMagic1 {
-		return nil, fmt.Errorf("invalid magic: got %02X %02X, expected %02X %02X", 
+		return nil, fmt.Errorf("invalid magic: got %02X %02X, expected %02X %02X",
 			data[0], data[1], sensorPayloadMagic0, sensorPayloadMagic1)
 	}
 	deviceID := uint32(binary.LittleEndian.Uint16(data[2:4]))
@@ -49,8 +49,8 @@ func ParseSensorPayload(data []byte) (*SensorReading, error) {
 	humScaled := binary.LittleEndian.Uint16(data[13:15])
 	hum := float64(humScaled) / 100.0
 	// Battery voltage: uint16 scaled by 1000 (0.001V resolution)
-	vbatScaled := binary.LittleEndian.Uint16(data[15:17])
-	vbat := float64(vbatScaled) / 1000.0
+	batteryScaled := binary.LittleEndian.Uint16(data[15:17])
+	battery := float64(batteryScaled) / 1000.0
 	return &SensorReading{
 		DeviceID:    deviceID,
 		RunCount:    runCount,
@@ -58,6 +58,6 @@ func ParseSensorPayload(data []byte) (*SensorReading, error) {
 		Temperature: temp,
 		Pressure:    press,
 		Humidity:    hum,
-		Vbat:        vbat,
+		Battery:     battery,
 	}, nil
 }

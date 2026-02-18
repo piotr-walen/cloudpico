@@ -55,14 +55,14 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 	temp := sr.Temperature
 	hum := sr.Humidity
 	press := sr.Pressure
-	vbat := sr.Vbat
+	battery := sr.Battery
 	telemetry := cloudpico_shared.Telemetry{
 		StationID:   stationID,
 		Timestamp:   time.Now(),
 		Temperature: &temp,
 		Humidity:    &hum,
 		Pressure:    &press,
-		Battery:     &vbat,
+		Battery:     &battery,
 		RunCount:    &sr.RunCount,
 		ReadingID:   &sr.ReadingID,
 	}
@@ -78,7 +78,7 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 		"run_count", sr.RunCount,
 		"reading_id", sr.ReadingID,
 		"rssi", m.RSSI,
-		"T", sr.Temperature, "P", sr.Pressure, "H", sr.Humidity, "V", sr.Vbat,
+		"T", sr.Temperature, "P", sr.Pressure, "H", sr.Humidity, "V", sr.Battery,
 		"data", utils.BytesToHex(m.Data),
 	)
 }
