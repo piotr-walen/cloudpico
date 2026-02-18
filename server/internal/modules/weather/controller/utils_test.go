@@ -347,12 +347,12 @@ func Test_resolveHistoryRange(t *testing.T) {
 	})
 
 	t.Run("unknown key returns default and false", func(t *testing.T) {
-		got, ok := resolveHistoryRange("30d")
+		got, ok := resolveHistoryRange("90d")
 		if ok {
-			t.Error("resolveHistoryRange(\"30d\") ok = true; want false")
+			t.Error("resolveHistoryRange(\"90d\") ok = true; want false")
 		}
 		if got.Duration != defaultRange.Duration {
-			t.Errorf("resolveHistoryRange(\"30d\") duration = %v; want default %v", got.Duration, defaultRange.Duration)
+			t.Errorf("resolveHistoryRange(\"90d\") duration = %v; want default %v", got.Duration, defaultRange.Duration)
 		}
 	})
 }

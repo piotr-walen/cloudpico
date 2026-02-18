@@ -303,7 +303,9 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 				PageItems:     []views.PaginationItem{{Page: 1, Ellipsis: false}},
 				ShowYAxes:     showYAxes,
 			}
-			data.SetChartReadingsJSON() // Will set to "[]" for empty readings
+			if err := data.SetChartReadingsJSON(); err != nil {
+				slog.Error("history: marshal chart readings JSON failed", "error", err)
+			}
 			var buf bytes.Buffer
 			if err := views.RenderHistoryPartial(&buf, &data); err != nil {
 				slog.Error("history partial render failed", "error", err)
