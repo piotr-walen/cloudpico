@@ -34,7 +34,7 @@ type WeatherRepository interface {
 	GetLatestReadings(stationID string, limit int) ([]types.Reading, error)
 	GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error)
 	GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error)
-	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, runCount *uint32, readingID *uint32) error
+	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, runCount *uint32, readingID *uint32) error
 }
 
 type repositoryImpl struct {
@@ -107,7 +107,7 @@ func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 	for rows.Next() {
 		var rec types.Reading
 		var ts string
-		if err := rows.Scan(&rec.StationID, &ts, &rec.Value, &rec.HumidityPct, &rec.PressureHpa); err != nil {
+		if err := rows.Scan(&rec.StationID, &ts, &rec.Value, &rec.HumidityPct, &rec.PressureHpa, &rec.BatteryV); err != nil {
 			return nil, err
 		}
 		t, err := time.Parse(time.RFC3339Nano, ts)
@@ -124,7 +124,7 @@ func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 	return out, rows.Err()
 }
 
-func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, runCount *uint32, readingID *uint32) error {
+func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, runCount *uint32, readingID *uint32) error {
 	tsStr := ts.UTC().Format(time.RFC3339Nano)
 
 	// Resolve station ID - stationID might be a name or an ID string
@@ -180,6 +180,11 @@ func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperatu
 		pressureVal = *pressure
 	}
 
+	var batteryVal interface{}
+	if battery != nil {
+		batteryVal = *battery
+	}
+
 	var runCountVal interface{}
 	if runCount != nil {
 		runCountVal = *runCount
@@ -190,7 +195,7 @@ func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperatu
 		readingIDVal = *readingID
 	}
 
-	_, err = r.db.Exec(insertReadingSQL, dbStationID, tsStr, tempVal, humidityVal, pressureVal, runCountVal, readingIDVal)
+	_, err = r.db.Exec(insertReadingSQL, dbStationID, tsStr, tempVal, humidityVal, pressureVal, batteryVal, runCountVal, readingIDVal)
 	if err != nil {
 		return fmt.Errorf("insert reading: %w", err)
 	}

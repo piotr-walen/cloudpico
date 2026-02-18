@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS readings (
   temperature_c   REAL,
   humidity_pct    REAL,
   pressure_hpa    REAL,
+  battery_v       REAL,
   run_count       INTEGER,
   reading_id      INTEGER,
 

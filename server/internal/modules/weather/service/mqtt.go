@@ -96,6 +96,7 @@ func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.We
 			telemetry.Temperature,
 			telemetry.Humidity,
 			telemetry.Pressure,
+			telemetry.Battery,
 			telemetry.RunCount,
 			telemetry.ReadingID,
 		)

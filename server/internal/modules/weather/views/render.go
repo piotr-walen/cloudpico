@@ -6,9 +6,27 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"math"
 )
 
 var dashboardTmpl *template.Template
+
+// CalculateBatteryPercentage calculates battery percentage from voltage.
+// 3.3V = 0%, 4.2V = 100%
+func CalculateBatteryPercentage(voltage float64) float64 {
+	if voltage <= 0.0 {
+		return 0.0
+	}
+	if voltage <= 3.3 {
+		return 0.0
+	}
+	if voltage >= 4.2 {
+		return 100.0
+	}
+	// Linear interpolation: ((voltage - 3.3) / (4.2 - 3.3)) * 100
+	percentage := ((voltage - 3.3) / 0.9) * 100.0
+	return math.Round(percentage*10) / 10 // Round to 1 decimal place
+}
 
 // loadTemplatesFromFS loads dashboard templates from the given fs and dir.
 // Used by LoadTemplates and by tests to simulate failure scenarios.
@@ -57,9 +75,10 @@ func RenderHistory(w io.Writer, data *HistoryParams) error {
 }
 
 type StationReading struct {
-	StationID   string
-	StationName string
-	Reading     *types.Reading
+	StationID        string
+	StationName      string
+	Reading          *types.Reading
+	BatteryPercentage float64 // Calculated from Reading.BatteryV: 3.3V = 0%, 4.2V = 100%
 }
 type DashboardData struct {
 	Stations []StationReading
