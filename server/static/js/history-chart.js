@@ -6,9 +6,9 @@
   // Detect mobile view (typically < 768px width)
   const isMobile = window.innerWidth < 768;
   
-  // Read initial showYAxes state from server (cookie)
+  // Read initial showYAxes state from server (driven by server state)
   function getInitialShowYAxes() {
-    // Read from script tag in partial (most reliable)
+    // First priority: Read from script tag in chart data partial (most reliable, server-driven)
     const showYAxesScript = document.getElementById('history-chart-show-y-axes');
     if (showYAxesScript) {
       try {
@@ -557,14 +557,7 @@
       return;
     }
 
-    // Check if chart data script was updated (out-of-band swap)
-    const dataScript = document.getElementById('history-chart-data');
-    if (!dataScript) {
-      // No data script yet, might be initial load
-      return;
-    }
-
-    // Check if chart was invalidated by DOM swap (out-of-band swap replaces the container)
+    // Check if chart data script was updated (out-of-band swap replaces the container)
     // If chart exists but its DOM element is gone, we need to recreate it
     if (chart && !isChartValid()) {
       // Chart was destroyed by DOM swap, recreate it
@@ -589,6 +582,43 @@
       updateChartData();
     }
   }
+
+  // Listen specifically for changes to the history-chart-data script tag
+  function handleChartDataUpdate(event) {
+    const dataScript = document.getElementById('history-chart-data');
+    if (!dataScript) {
+      // No data script yet, might be initial load
+      return;
+    }
+
+    const chartContainer = document.getElementById('history-chart-container');
+    if (!chartContainer || !chartContainer.querySelector('#chart-area')) {
+      return;
+    }
+
+    // Check if chart was invalidated by DOM swap
+    if (chart && !isChartValid()) {
+      chart = null;
+      initChart();
+      return;
+    }
+
+    // Check if axes visibility changed
+    const newShowYAxes = getInitialShowYAxes();
+    const axesVisibilityChanged = chart && newShowYAxes !== showYAxes;
+    
+    // Update state
+    showYAxes = newShowYAxes;
+    addToggleControls(chartContainer);
+
+    if (axesVisibilityChanged) {
+      // Structural change, need to recreate chart
+      initChart();
+    } else {
+      // Just update data incrementally
+      updateChartData();
+    }
+  }
   
   // Listen for htmx swaps on the body (catches all swaps including out-of-band)
   document.body.addEventListener('htmx:afterSettle', handleChartUpdate);
@@ -598,6 +628,47 @@
   if (historyContainer) {
     historyContainer.addEventListener('htmx:afterSettle', handleChartUpdate);
   }
+
+  // Set up listeners for the chart data script tag
+  function setupChartDataScriptListeners() {
+    const chartDataScript = document.getElementById('history-chart-data');
+    if (!chartDataScript) {
+      return;
+    }
+
+    // Remove existing listeners if any (to avoid duplicates)
+    if (chartDataScript._chartDataUpdateHandler) {
+      chartDataScript.removeEventListener('htmx:afterSwap', chartDataScript._chartDataUpdateHandler);
+    }
+    if (chartDataScript._chartDataConfigHandler) {
+      chartDataScript.removeEventListener('htmx:configRequest', chartDataScript._chartDataConfigHandler);
+    }
+
+    // Listen for htmx swaps on the script tag itself
+    const updateHandler = function() {
+      handleChartDataUpdate();
+    };
+    chartDataScript._chartDataUpdateHandler = updateHandler;
+    chartDataScript.addEventListener('htmx:afterSwap', updateHandler);
+    
+    // Add show_y_axes parameter to chart data requests
+    const configHandler = function(event) {
+      // Read show_y_axes from the button's data attribute or script tag
+      const showYAxesValue = getInitialShowYAxes();
+      event.detail.parameters = event.detail.parameters || {};
+      event.detail.parameters.show_y_axes = String(showYAxesValue);
+    };
+    chartDataScript._chartDataConfigHandler = configHandler;
+    chartDataScript.addEventListener('htmx:configRequest', configHandler);
+  }
+
+  // Set up listeners initially
+  setupChartDataScriptListeners();
+
+  // Re-setup listeners after htmx swaps (script tag might be replaced)
+  document.body.addEventListener('htmx:afterSettle', function() {
+    setupChartDataScriptListeners();
+  });
   
   // Initialize on initial page load (after htmx loads the partial)
   if (document.readyState === 'loading') {

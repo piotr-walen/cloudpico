@@ -48,13 +48,34 @@
               </select>
             </div>
           </div>
-          <div id="history-chart-container" class="history-chart-container">
-            <p>Loading chart…</p>
+
+
+          <div id="history-chart-container" class="history-chart-container" hx-swap-oob="true">
+            <div class="chart-controls">
+              <button type="button" 
+                      id="axes-toggle" 
+                      class="secondary small"
+                      data-show-y-axes="{{ .ShowYAxes }}"
+                      hx-get="/partials/history"
+                      hx-target="#history-container"
+                      hx-swap="innerHTML"
+                      hx-include="#station-selector, #history-range"
+                      >{{ if .ShowYAxes }}Hide Y-Axes{{ else }}Show Y-Axes{{ end }}</button>
+            </div>
+
+            <script type="application/json" id="history-chart-data" 
+              hx-get="/partials/history-chart-data" 
+              hx-trigger="load, every 2s, change from:#station-selector, change from:#history-range, click from:#axes-toggle" 
+              hx-swap="outerHTML" 
+              hx-include="#station-selector, #history-range">[]</script>
+
+            <div id="chart-area"></div>
           </div>
+
           <div id="history-container"
                class="history-container"
                hx-get="/partials/history"
-               hx-trigger="load, every 20s, change from:#station-selector, change from:#history-range"
+               hx-trigger="load, 20s change from:#station-selector, change from:#history-range"
                hx-swap="innerHTML"
                hx-include="#station-selector, #history-range">
             <p>Loading…</p>

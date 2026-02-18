@@ -147,3 +147,18 @@ func RenderStationsPartial(w io.Writer, data *DashboardData) error {
 	}
 	return dashboardTmpl.ExecuteTemplate(w, "partials/stations.html", data)
 }
+
+// ChartDataParams is the view model for the history chart data partial.
+type ChartDataParams struct {
+	ChartReadingsJSON template.JS
+	ShowYAxes         bool
+}
+
+// RenderHistoryChartDataPartial executes only the history chart data partial into w.
+// Use for HTMX fragment refresh (e.g. chart data auto-refresh).
+func RenderHistoryChartDataPartial(w io.Writer, data *ChartDataParams) error {
+	if dashboardTmpl == nil {
+		return errors.New("dashboard template not loaded: call views.LoadTemplates during startup")
+	}
+	return dashboardTmpl.ExecuteTemplate(w, "partials/history-chart-data.html", data)
+}

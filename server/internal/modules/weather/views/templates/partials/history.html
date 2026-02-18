@@ -3,22 +3,7 @@
 <p class="history-station">{{ .StationName }}</p>
 {{ end }}
 <p class="history-range-label">{{ .RangeLabel }}</p>
-<div id="history-chart-container" class="history-chart-container" hx-swap-oob="true">
-  <div class="chart-controls">
-    <button type="button" 
-            id="axes-toggle" 
-            class="secondary small"
-            data-show-y-axes="{{ .ShowYAxes }}"
-            hx-get="/partials/history"
-            hx-target="#history-container"
-            hx-swap="innerHTML"
-            hx-include="#station-selector, #history-range"
-            >{{ if .ShowYAxes }}Hide Y-Axes{{ else }}Show Y-Axes{{ end }}</button>
-  </div>
-  <div id="chart-area"></div>
-  <script type="application/json" id="history-chart-data">{{ .ChartReadingsJSON }}</script>
-  <script type="application/json" id="history-chart-show-y-axes">{{ if .ShowYAxes }}true{{ else }}false{{ end }}</script>
-</div>
+{{ template "partials/history-chart.html" . }}
 {{ if .Readings }}
 <ul class="history-list">
   {{ range .Readings }}

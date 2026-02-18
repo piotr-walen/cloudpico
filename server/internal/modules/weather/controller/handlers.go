@@ -2,6 +2,8 @@ package controller
 
 import (
 	"bytes"
+	"encoding/json"
+	"html/template"
 	"log/slog"
 	"net/http"
 	"sort"
@@ -397,5 +399,111 @@ func (c *weatherControllerImpl) handleHistoryPartial(w http.ResponseWriter, r *h
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if _, err := w.Write(buf.Bytes()); err != nil {
 		slog.Error("history: write response failed", "error", err)
+	}
+}
+
+func (c *weatherControllerImpl) handleHistoryChartData(w http.ResponseWriter, r *http.Request) {
+	stations, err := c.repository.GetStations()
+	if err != nil {
+		slog.Error("history-chart-data: get stations failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
+		return
+	}
+
+	state := readWeatherStateCookie(r)
+	rangeKey := r.URL.Query().Get("range")
+	if rangeKey == "" {
+		rangeKey = state.RangeKey
+	}
+	rangeInfo, ok := resolveHistoryRange(rangeKey)
+	if !ok && rangeKey != "" {
+		slog.Warn("history-chart-data: invalid range", "range", rangeKey)
+	}
+	resolvedRangeKey := rangeKey
+	if resolvedRangeKey == "" || !ok {
+		resolvedRangeKey = defaultHistoryRangeKey
+		rangeInfo, _ = resolveHistoryRange(resolvedRangeKey)
+	}
+
+	requestStation := r.URL.Query().Get("station_id")
+	if requestStation == "" {
+		requestStation = state.StationID
+	}
+
+	// Handle show_y_axes: read from query param, fallback to cookie, default to true
+	showYAxes := true
+	if s := r.URL.Query().Get("show_y_axes"); s != "" {
+		if b, err := strconv.ParseBool(s); err == nil {
+			showYAxes = b
+		} else if state.ShowYAxes != nil {
+			showYAxes = *state.ShowYAxes
+		}
+	} else if state.ShowYAxes != nil {
+		showYAxes = *state.ShowYAxes
+	}
+
+	stationID := requestStation
+	if stationID == "" {
+		if len(stations) == 0 {
+			// No stations available, return empty data
+			data := views.ChartDataParams{
+				ChartReadingsJSON: template.JS("[]"),
+				ShowYAxes:         showYAxes,
+			}
+			var buf bytes.Buffer
+			if err := views.RenderHistoryChartDataPartial(&buf, &data); err != nil {
+				slog.Error("history-chart-data partial render failed", "error", err)
+				utils.WriteError(w, http.StatusInternalServerError, "failed to render")
+				return
+			}
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if _, err := w.Write(buf.Bytes()); err != nil {
+				slog.Error("history-chart-data: write response failed", "error", err)
+			}
+			return
+		}
+		stationID = stations[0].ID
+	}
+
+	now := time.Now().UTC()
+	from := now.Add(-rangeInfo.Duration)
+
+	// Fetch all readings for the chart (up to 10000 to avoid performance issues)
+	chartReadings, err := c.repository.GetReadings(stationID, from, now, 10000, 0)
+	if err != nil {
+		slog.Error("history-chart-data: get chart readings failed", "station_id", stationID, "error", err)
+		// Continue with empty chart data
+		chartReadings = []types.Reading{}
+	} else {
+		slog.Debug("history-chart-data: fetched chart readings", "station_id", stationID, "count", len(chartReadings), "from", from, "to", now)
+	}
+
+	// Prepare chart data
+	chartData := views.ChartDataParams{
+		ShowYAxes: showYAxes,
+	}
+	
+	// Marshal readings to JSON
+	if chartReadings == nil {
+		chartReadings = []types.Reading{}
+	}
+	jsonBytes, err := json.Marshal(chartReadings)
+	if err != nil {
+		slog.Error("history-chart-data: marshal chart readings JSON failed", "error", err)
+		chartData.ChartReadingsJSON = template.JS("[]")
+	} else {
+		chartData.ChartReadingsJSON = template.JS(jsonBytes)
+		slog.Debug("history-chart-data: chart readings JSON prepared", "readings_count", len(chartReadings), "json_length", len(chartData.ChartReadingsJSON))
+	}
+
+	var buf bytes.Buffer
+	if err := views.RenderHistoryChartDataPartial(&buf, &chartData); err != nil {
+		slog.Error("history-chart-data partial render failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to render")
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := w.Write(buf.Bytes()); err != nil {
+		slog.Error("history-chart-data: write response failed", "error", err)
 	}
 }
