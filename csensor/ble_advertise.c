@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 #include "ble_advertise.h"
 #include "btstack.h"
 #include "pico/cyw43_arch.h"
@@ -67,22 +68,38 @@ static void build_manufacturer_data(uint8_t *buffer, uint32_t dev_id, uint32_t r
     *p++ = (uint8_t)((read_id_24 >> 16) & 0xFF);
     
     // Temperature (little-endian int16, scaled by 100: 0.01°C resolution)
-    int16_t temp_scaled = (int16_t)(temp * 100.0f);
+    // Round and clamp to int16 range; NaN/Inf → 0
+    long temp_rounded = isfinite(temp) ? lrintf(temp * 100.0f) : 0L;
+    if (temp_rounded < INT16_MIN) temp_rounded = INT16_MIN;
+    if (temp_rounded > INT16_MAX) temp_rounded = INT16_MAX;
+    int16_t temp_scaled = (int16_t)temp_rounded;
     *p++ = (uint8_t)(temp_scaled & 0xFF);
     *p++ = (uint8_t)((temp_scaled >> 8) & 0xFF);
     
     // Pressure (little-endian uint16, scaled by 10: 0.1 kPa resolution)
-    uint16_t press_scaled = (uint16_t)(pressure * 10.0f);
+    // Round and clamp to [0, UINT16_MAX]; negative/NaN/Inf → 0
+    long press_rounded = (isfinite(pressure) && pressure >= 0.0f) ? lrintf(pressure * 10.0f) : 0L;
+    if (press_rounded < 0) press_rounded = 0;
+    if ((unsigned long)press_rounded > UINT16_MAX) press_rounded = UINT16_MAX;
+    uint16_t press_scaled = (uint16_t)press_rounded;
     *p++ = (uint8_t)(press_scaled & 0xFF);
     *p++ = (uint8_t)((press_scaled >> 8) & 0xFF);
     
     // Humidity (little-endian uint16, scaled by 100: 0.01% resolution)
-    uint16_t hum_scaled = (uint16_t)(humidity * 100.0f);
+    // Round and clamp to [0, UINT16_MAX]; negative/NaN/Inf → 0
+    long hum_rounded = (isfinite(humidity) && humidity >= 0.0f) ? lrintf(humidity * 100.0f) : 0L;
+    if (hum_rounded < 0) hum_rounded = 0;
+    if ((unsigned long)hum_rounded > UINT16_MAX) hum_rounded = UINT16_MAX;
+    uint16_t hum_scaled = (uint16_t)hum_rounded;
     *p++ = (uint8_t)(hum_scaled & 0xFF);
     *p++ = (uint8_t)((hum_scaled >> 8) & 0xFF);
     
     // Battery voltage (little-endian uint16, scaled by 1000: 0.001V resolution)
-    uint16_t battery_scaled = (uint16_t)(battery * 1000.0f);
+    // Round and clamp to [0, UINT16_MAX]; negative/NaN/Inf → 0
+    long battery_rounded = (isfinite(battery) && battery >= 0.0f) ? lrintf(battery * 1000.0f) : 0L;
+    if (battery_rounded < 0) battery_rounded = 0;
+    if ((unsigned long)battery_rounded > UINT16_MAX) battery_rounded = UINT16_MAX;
+    uint16_t battery_scaled = (uint16_t)battery_rounded;
     *p++ = (uint8_t)(battery_scaled & 0xFF);
     *p++ = (uint8_t)((battery_scaled >> 8) & 0xFF);
 }
