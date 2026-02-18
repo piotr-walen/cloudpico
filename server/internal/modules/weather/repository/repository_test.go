@@ -609,6 +609,73 @@ func TestInsertReading_InvalidHumidity(t *testing.T) {
 	})
 }
 
+func TestBatteryVoltage_PersistedAndRetrieved(t *testing.T) {
+	db := setupTestDB(t)
+	defer func() {
+		if closeErr := db.Close(); closeErr != nil {
+			t.Fatalf("close db: %v", closeErr)
+		}
+	}()
+	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
+	if err != nil {
+		t.Fatalf("insert station: %v", err)
+	}
+	repo := NewRepository(db)
+
+	// Insert reading with non-nil battery voltage
+	tsWithBattery := time.Date(2025, 2, 1, 12, 0, 0, 0, time.UTC)
+	temp := 20.0
+	hum := 55.0
+	press := 1013.0
+	batteryV := 3.9
+	err = repo.InsertReading("1", tsWithBattery, &temp, &hum, &press, &batteryV, nil, nil)
+	if err != nil {
+		t.Fatalf("InsertReading with battery: %v", err)
+	}
+
+	// Insert reading with nil battery (NULL in DB → 0 when read)
+	tsNoBattery := time.Date(2025, 2, 1, 13, 0, 0, 0, time.UTC)
+	err = repo.InsertReading("1", tsNoBattery, &temp, &hum, &press, nil, nil, nil)
+	if err != nil {
+		t.Fatalf("InsertReading without battery: %v", err)
+	}
+
+	// GetLatestReadings: newest first (13:00, 12:00)
+	latest, err := repo.GetLatestReadings("1", 10)
+	if err != nil {
+		t.Fatalf("GetLatestReadings: %v", err)
+	}
+	if len(latest) != 2 {
+		t.Fatalf("GetLatestReadings: got %d readings, want 2", len(latest))
+	}
+	// 13:00 has nil battery → 0
+	if latest[0].BatteryV != 0 {
+		t.Errorf("GetLatestReadings[0] (no battery): BatteryV = %v, want 0", latest[0].BatteryV)
+	}
+	// 12:00 has battery 3.9
+	if latest[1].BatteryV != 3.9 {
+		t.Errorf("GetLatestReadings[1] (with battery): BatteryV = %v, want 3.9", latest[1].BatteryV)
+	}
+
+	// GetReadings: same contract
+	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
+	readings, err := repo.GetReadings("1", from, to, 10, 0)
+	if err != nil {
+		t.Fatalf("GetReadings: %v", err)
+	}
+	if len(readings) != 2 {
+		t.Fatalf("GetReadings: got %d readings, want 2", len(readings))
+	}
+	// Order DESC: 13:00, 12:00
+	if readings[0].BatteryV != 0 {
+		t.Errorf("GetReadings[0] (no battery): BatteryV = %v, want 0", readings[0].BatteryV)
+	}
+	if readings[1].BatteryV != 3.9 {
+		t.Errorf("GetReadings[1] (with battery): BatteryV = %v, want 3.9", readings[1].BatteryV)
+	}
+}
+
 func TestInsertReading_InvalidPressure(t *testing.T) {
 	db := setupTestDB(t)
 	defer func() {
