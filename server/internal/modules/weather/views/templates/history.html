@@ -55,17 +55,12 @@
               <button type="button" 
                       id="axes-toggle" 
                       class="secondary small"
-                      data-show-y-axes="{{ .ShowYAxes }}"
-                      hx-get="/partials/history"
-                      hx-target="#history-container"
-                      hx-swap="innerHTML"
-                      hx-include="#station-selector, #history-range"
-                      >{{ if .ShowYAxes }}Hide Y-Axes{{ else }}Show Y-Axes{{ end }}</button>
+                      data-show-y-axes="false">Show Y-Axes</button>
             </div>
 
             <script type="application/json" id="history-chart-data" 
               hx-get="/partials/history-chart-data" 
-              hx-trigger="load, every 20s, change from:#station-selector, change from:#history-range, click from:#axes-toggle" 
+              hx-trigger="load, every 20s, change from:#station-selector, change from:#history-range" 
               hx-swap="outerHTML" 
               hx-include="#station-selector, #history-range">[]</script>
 
