@@ -29,6 +29,124 @@
   
   let showYAxes = getInitialShowYAxes();
 
+  // Parse readings data from script tag
+  function parseReadingsData() {
+    const dataScript = document.getElementById('history-chart-data');
+    if (!dataScript) {
+      return null;
+    }
+
+    try {
+      const jsonText = (dataScript.textContent || '').trim();
+      if (!jsonText) {
+        return [];
+      }
+      const readings = JSON.parse(jsonText);
+      
+      // Ensure readings is an array
+      if (!Array.isArray(readings)) {
+        console.error('Chart data is not an array. Type:', typeof readings);
+        if (readings && typeof readings === 'object' && readings.length !== undefined) {
+          return Array.from(readings);
+        }
+        return null;
+      }
+      
+      return readings;
+    } catch (e) {
+      console.error('Failed to parse chart data:', e, 'Content:', dataScript?.textContent);
+      return null;
+    }
+  }
+
+  // Convert readings to uPlot data format
+  function readingsToData(readings) {
+    if (!readings || readings.length === 0) {
+      return null;
+    }
+
+    // Sort readings by time (oldest first) for proper time series display
+    const sortedReadings = [...readings].sort((a, b) => new Date(a.time) - new Date(b.time));
+
+    // Prepare data arrays for uPlot
+    // uPlot expects: [time, series1, series2, ...]
+    const times = [];
+    const temperatures = [];
+    const humidity = [];
+    const pressure = [];
+    const battery = [];
+
+    sortedReadings.forEach(reading => {
+      const timestamp = new Date(reading.time).getTime();
+      times.push(timestamp);
+      temperatures.push(reading.value ?? null);
+      humidity.push(reading.humidityPct > 0 ? reading.humidityPct : null);
+      pressure.push(reading.pressureHpa > 0 ? reading.pressureHpa : null);
+      battery.push(reading.batteryV > 0 ? reading.batteryV : null);
+    });
+
+    return [
+      times,
+      temperatures,
+      humidity,
+      pressure,
+      battery
+    ];
+  }
+
+  // Check if chart is still valid (its DOM element exists)
+  function isChartValid() {
+    if (!chart) {
+      return false;
+    }
+    // Check if the chart's root element still exists in the DOM
+    const chartRoot = chart.root;
+    return chartRoot && document.body.contains(chartRoot);
+  }
+
+  // Update chart data without recreating the chart
+  function updateChartData() {
+    // Check if chart exists and is still valid (DOM element exists)
+    if (!chart || !isChartValid()) {
+      // Chart doesn't exist or was destroyed by DOM swap, initialize it
+      initChart();
+      return;
+    }
+
+    const readings = parseReadingsData();
+    if (readings === null) {
+      // Invalid data, but keep existing chart
+      return;
+    }
+
+    if (readings.length === 0) {
+      // No data, but keep chart (might be temporary)
+      return;
+    }
+
+    const newData = readingsToData(readings);
+    if (!newData) {
+      return;
+    }
+
+    try {
+      // Update chart data without recreating
+      chart.setData(newData);
+      
+      // Update axes visibility if it changed
+      const newShowYAxes = getInitialShowYAxes();
+      if (newShowYAxes !== showYAxes) {
+        showYAxes = newShowYAxes;
+        // Need to recreate chart if axes visibility changed (structural change)
+        initChart();
+      }
+    } catch (e) {
+      console.error('Failed to update chart data:', e);
+      // Fallback to full recreation if update fails
+      initChart();
+    }
+  }
+
   function initChart() {
     // Check if uPlot is available
     if (typeof uPlot === 'undefined') {
@@ -43,82 +161,50 @@
       return;
     }
 
-    // Destroy existing chart if any
-    if (chart) {
-      chart.destroy();
-      chart = null;
-    }
-    
-    // Clear chart area
-    chartArea.innerHTML = '';
-
-    // If no data script, show empty state
-    if (!dataScript) {
-      // The script might not be loaded yet (e.g., on initial page load before partial loads)
-      // Show loading message - the chart will initialize when the partial loads via htmx
-      chartArea.innerHTML = '<p class="no-data">Loading chart data…</p>';
-      return;
-    }
-
     // Parse readings data
-    let readings;
-    try {
-      const jsonText = (dataScript.textContent || '').trim();
-      if (!jsonText) {
-        readings = [];
+    const readings = parseReadingsData();
+    
+    // If no data script or invalid data, show empty state
+    if (readings === null) {
+      // The script might not be loaded yet (e.g., on initial page load before partial loads)
+      if (!dataScript) {
+        chartArea.innerHTML = '<p class="no-data">Loading chart data…</p>';
       } else {
-        readings = JSON.parse(jsonText);
+        chartArea.innerHTML = '<p class="no-data">Failed to parse chart data</p>';
       }
-    } catch (e) {
-      console.error('Failed to parse chart data:', e, 'Content:', dataScript.textContent);
-      chartArea.innerHTML = '<p class="no-data">Failed to parse chart data</p>';
+      // Destroy existing chart if any
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
       return;
-    }
-
-    // Ensure readings is an array
-    if (!Array.isArray(readings)) {
-      console.error('Chart data is not an array. Type:', typeof readings);
-      // Try to convert if it's an array-like object
-      if (readings && typeof readings === 'object' && readings.length !== undefined) {
-        readings = Array.from(readings);
-      } else {
-        chartArea.innerHTML = '<p class="no-data">Invalid chart data format</p>';
-        return;
-      }
     }
 
     if (readings.length === 0) {
       chartArea.innerHTML = '<p class="no-data">No data to display</p>';
+      // Destroy existing chart if any
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
       return;
     }
 
-    // Sort readings by time (oldest first) for proper time series display
-    readings.sort((a, b) => new Date(a.time) - new Date(b.time));
+    // Clear any error messages
+    chartArea.innerHTML = '';
 
-    // Prepare data arrays for uPlot
-    // uPlot expects: [time, series1, series2, ...]
-    const times = [];
-    const temperatures = [];
-    const humidity = [];
-    const pressure = [];
-    const battery = [];
+    const data = readingsToData(readings);
+    if (!data) {
+      chartArea.innerHTML = '<p class="no-data">Invalid chart data format</p>';
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
+      return;
+    }
 
-    readings.forEach(reading => {
-      const timestamp = new Date(reading.time).getTime();
-      times.push(timestamp);
-      temperatures.push(reading.value ?? null);
-      humidity.push(reading.humidityPct > 0 ? reading.humidityPct : null);
-      pressure.push(reading.pressureHpa > 0 ? reading.pressureHpa : null);
-      battery.push(reading.batteryV > 0 ? reading.batteryV : null);
-    });
-
-    const data = [
-      times,
-      temperatures,
-      humidity,
-      pressure,
-      battery
-    ];
+    // Extract times array from data (first element)
+    const times = data[0];
 
     // Grid configuration options - experiment with these!
     const gridConfig = {
@@ -360,8 +446,14 @@
         draw: [
           (u) => {
             // Draw vertical lines at day boundaries
-            const minTime = times[0];
-            const maxTime = times[times.length - 1];
+            // Access times from chart data (u.data[0]) instead of closure variable
+            // This ensures we always use the current data, even after updates
+            const chartTimes = u.data[0];
+            if (!chartTimes || chartTimes.length === 0) {
+              return;
+            }
+            const minTime = chartTimes[0];
+            const maxTime = chartTimes[chartTimes.length - 1];
             // Don't draw day boundary lines if time span is greater than 7 days
             const timeSpan = maxTime - minTime;
             const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
@@ -406,6 +498,12 @@
       }
     };
 
+    // Destroy existing chart if recreating (e.g., axes visibility changed)
+    if (chart) {
+      chart.destroy();
+      chart = null;
+    }
+
     // Create chart
     try {
       chart = new uPlot(opts, data, chartArea);
@@ -414,6 +512,10 @@
     } catch (e) {
       console.error('Failed to create chart:', e);
       chartArea.innerHTML = '<p class="no-data">Failed to render chart</p>';
+      if (chart) {
+        chart.destroy();
+        chart = null;
+      }
     }
   }
 
@@ -447,23 +549,54 @@
     }
   }
 
-  // Listen for swaps - htmx handles everything
+  // Listen for htmx swaps - update chart data incrementally
   // Use afterSettle to catch all swaps including out-of-band
-  function reinitChart() {
+  function handleChartUpdate(event) {
     const chartContainer = document.getElementById('history-chart-container');
-    if (chartContainer && chartContainer.querySelector('#chart-area')) {
-      showYAxes = getInitialShowYAxes();
-      addToggleControls(chartContainer);
+    if (!chartContainer || !chartContainer.querySelector('#chart-area')) {
+      return;
+    }
+
+    // Check if chart data script was updated (out-of-band swap)
+    const dataScript = document.getElementById('history-chart-data');
+    if (!dataScript) {
+      // No data script yet, might be initial load
+      return;
+    }
+
+    // Check if chart was invalidated by DOM swap (out-of-band swap replaces the container)
+    // If chart exists but its DOM element is gone, we need to recreate it
+    if (chart && !isChartValid()) {
+      // Chart was destroyed by DOM swap, recreate it
+      chart = null;
       initChart();
+      return;
+    }
+
+    // Check if axes visibility changed before updating state
+    const newShowYAxes = getInitialShowYAxes();
+    const axesVisibilityChanged = chart && newShowYAxes !== showYAxes;
+    
+    // Update toggle controls state
+    showYAxes = newShowYAxes;
+    addToggleControls(chartContainer);
+
+    if (axesVisibilityChanged) {
+      // Structural change, need to recreate chart
+      initChart();
+    } else {
+      // Just update data incrementally
+      updateChartData();
     }
   }
   
-  document.body.addEventListener('htmx:afterSettle', reinitChart);
+  // Listen for htmx swaps on the body (catches all swaps including out-of-band)
+  document.body.addEventListener('htmx:afterSettle', handleChartUpdate);
   
-  // Also listen on history-container specifically
+  // Also listen on history-container specifically for targeted updates
   const historyContainer = document.getElementById('history-container');
   if (historyContainer) {
-    historyContainer.addEventListener('htmx:afterSettle', reinitChart);
+    historyContainer.addEventListener('htmx:afterSettle', handleChartUpdate);
   }
   
   // Initialize on initial page load (after htmx loads the partial)
@@ -481,6 +614,10 @@
   window.addEventListener('resize', function() {
     clearTimeout(resizeTimeout);
     resizeTimeout = setTimeout(function() {
+      if (!chart) {
+        return;
+      }
+
       const isNowMobile = window.innerWidth < 768;
       
       // Update axes visibility if switching between mobile/desktop
@@ -492,14 +629,17 @@
           // On mobile switch, default to hidden; on desktop switch, default to shown
           // But respect user preference if they've explicitly set it
           const currentState = getInitialShowYAxes();
-          showYAxes = !isNowMobile; // Off on mobile, on on desktop
-          previousIsMobile = isNowMobile;
-          axesToggle.textContent = showYAxes ? 'Hide Y-Axes' : 'Show Y-Axes';
-          axesToggle.dataset.showYAxes = showYAxes.toString();
+          const newShowYAxes = !isNowMobile; // Off on mobile, on on desktop
+          if (newShowYAxes !== showYAxes) {
+            showYAxes = newShowYAxes;
+            previousIsMobile = isNowMobile;
+            axesToggle.textContent = showYAxes ? 'Hide Y-Axes' : 'Show Y-Axes';
+            axesToggle.dataset.showYAxes = showYAxes.toString();
+            // Reinitialize chart with new axes setting (structural change)
+            initChart();
+          }
         }
-        // Reinitialize chart with new axes setting
-        initChart();
-      } else if (chart) {
+      } else {
         // Just resize the chart if no mobile/desktop switch
         chart.setSize({
           width: document.getElementById('history-chart-container')?.offsetWidth || 800,
