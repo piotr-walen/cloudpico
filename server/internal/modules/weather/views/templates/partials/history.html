@@ -12,6 +12,7 @@
       <span class="history-value">{{ printf "%.1f" .Value }}°C</span>
       <span class="history-humidity">{{ printf "%.0f" .HumidityPct }}%</span>
       <span class="history-pressure">{{ printf "%.0f" .PressureHpa }} hPa</span>
+      <span class="history-voltage">{{ if gt .BatteryV 0.0 }}{{ printf "%.2f" .BatteryV }}V{{ else }}—{{ end }}</span>
     </span>
   </li>
   {{ end }}

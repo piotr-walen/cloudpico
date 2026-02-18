@@ -27,7 +27,7 @@
 .history-time { color: #666; font-size: 0.9rem; }
 .history-values { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
 .history-value { font-weight: 600; }
-.history-humidity, .history-pressure { color: #555; font-size: 0.9rem; }
+.history-humidity, .history-pressure, .history-voltage { color: #555; font-size: 0.9rem; }
 .history-container .no-data { margin: 0; color: #888; }
 .history-pagination { display: flex; align-items: center; gap: 0.5rem 1rem; margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid #eee; flex-wrap: wrap; }
 .history-pagination-pages { display: flex; align-items: center; gap: 0.25rem; }
