@@ -12,20 +12,14 @@ void battery_voltage_init(void) {
 }
 
 float read_battery_voltage(void) {
-    // ADC on Pico is 12-bit: 0..4095 for 0..3.3V (approx, referenced to 3V3)
-    const float adc_ref = 3.3f;
-    const float divider_ratio = 2.0f;  // 100k/100k divider => battery = Vadc * 2
-
-    // Simple averaging to reduce noise
-    const int samples = 32;
-    unsigned long sum = 0;  // Using unsigned long for linter compatibility
-    for (int i = 0; i < samples; i++) {
+    unsigned long sum = 0;  /* unsigned long for linter compatibility */
+    for (int i = 0; i < BATTERY_ADC_SAMPLES; i++) {
         sum += adc_read();
-        sleep_us(200);
+        sleep_us(BATTERY_ADC_SAMPLE_DELAY_US);
     }
-    float raw = (float)sum / (float)samples;
+    float raw = (float)sum / (float)BATTERY_ADC_SAMPLES;
 
-    float v_adc = raw * adc_ref / 4095.0f;
-    float v_bat = v_adc * divider_ratio;
+    float v_adc = raw * BATTERY_ADC_REF_V / (float)BATTERY_ADC_MAX_COUNT;
+    float v_bat = v_adc * BATTERY_DIVIDER_RATIO;
     return v_bat;
 }
