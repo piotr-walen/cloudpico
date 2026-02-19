@@ -1,50 +1,63 @@
 # Mosquitto MQTT Broker Configuration
 
-## Configuration Files
+## Broker Layout
 
-Example configuration files are available in the `docs/` directory:
-- `docs/mosquitto.conf.example` - Example Mosquitto broker configuration
-- `docs/mosquitto.acl.example` - Example Access Control List (ACL)
+The project uses two Mosquitto broker roles:
 
-Copy these to the `mosquitto/` directory:
-```bash
-cp docs/mosquitto.conf.example mosquitto/mosquitto.conf
-cp docs/mosquitto.acl.example mosquitto/acl
-```
+- **Local broker** (`local-broker/`) – Runs near the gateway. The gateway publishes to this broker; it bridges selected topics to the hosted broker.
+- **Hosted broker** (`hosted-broker/`) – Central broker. Local brokers bridge to it; the server subscribes here.
+
+Configuration files (`mosquitto.conf`, `mosquitto.acl`) are already in `local-broker/` and `hosted-broker/`. You only need to create the password files.
 
 ## Setting Up Authentication
 
-### Create password file with server user:
+### Hosted broker (`hosted-broker/passwd`)
+
+Users: `bridge` (used by local broker bridge), `server` (used by the app server).
+
 ```bash
-mosquitto_passwd -c -b mosquitto/passwd server "your-server-password"
+# Create password file with bridge user (required for local→hosted bridge)
+mosquitto_passwd -c -b hosted-broker/passwd bridge "your-bridge-password"
+
+# Add server user (for server subscribing to telemetry)
+mosquitto_passwd -b hosted-broker/passwd server "your-server-password"
 ```
 
-### Add gateway user:
+### Local broker (`local-broker/passwd`)
+
+User: `gateway` (used by gateway devices to publish telemetry).
+
 ```bash
-mosquitto_passwd -b mosquitto/passwd gateway "your-gateway-password"
+mosquitto_passwd -c -b local-broker/passwd gateway "your-gateway-password"
 ```
 
-### Update existing password file:
-```bash
-# Update server password
-mosquitto_passwd -b mosquitto/passwd server "new-server-password"
+### Updating passwords
 
-# Update gateway password
-mosquitto_passwd -b mosquitto/passwd gateway "new-gateway-password"
+```bash
+# Hosted broker
+mosquitto_passwd -b hosted-broker/passwd bridge "new-bridge-password"
+mosquitto_passwd -b hosted-broker/passwd server "new-server-password"
+
+# Local broker
+mosquitto_passwd -b local-broker/passwd gateway "new-gateway-password"
 ```
 
 ## Environment Variables
 
-After generating passwords, set them as environment variables for docker-compose:
+Set these for docker-compose (or in a `.env` file in the project root):
 
 ```bash
-export MQTT_SERVER_PASSWORD="your-server-password"
-export MQTT_GATEWAY_PASSWORD="your-gateway-password"
+export MQTT_SERVER_PASSWORD="your-server-password"    # server user on hosted broker
+export MQTT_GATEWAY_PASSWORD="your-gateway-password"  # gateway user on local broker
+export MQTT_BRIDGE_PASSWORD="your-bridge-password"    # bridge user on hosted broker (used by local broker)
+export MQTT_HOSTED_BROKER_ADDRESS="host:1883"         # only for local broker (e.g. mosquitto-hosted:1883 in dev)
 ```
 
-Or add them to a `.env` file in the project root:
+Or in `.env`:
 
 ```env
 MQTT_SERVER_PASSWORD=your-server-password
 MQTT_GATEWAY_PASSWORD=your-gateway-password
+MQTT_BRIDGE_PASSWORD=your-bridge-password
+MQTT_HOSTED_BROKER_ADDRESS=hosted-broker.example.com:1883
 ```

@@ -9,9 +9,10 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/passwd:/mosquitto/config/passwd
-      - ./mosquitto/mosquitto.acl:/mosquitto/config/acl:ro
+      # Config/acl mounted rw so container entrypoint can chown (avoids ACL group warning)
+      - ./hosted-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./hosted-broker/passwd:/mosquitto/config/passwd
+      - ./hosted-broker/mosquitto.acl:/mosquitto/config/acl:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     networks:
