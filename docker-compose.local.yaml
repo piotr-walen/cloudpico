@@ -1,25 +1,29 @@
 version: '3.8'
 
 services:
-  gateway:
-    build:
-      context: .
-      dockerfile: ./gateway/Dockerfile
-    container_name: cloudpico-gateway-local
+  mosquitto-local:
+    image: eclipse-mosquitto:2.0
+    container_name: cloudpico-mosquitto-local
     restart: unless-stopped
-    environment:
-      - APP_ENV=dev
-      - LOG_LEVEL=info
-      - MQTT_BROKER=mosquitto
-      - MQTT_PORT=1883
-      - MQTT_CLIENT_ID=cloudpico-gateway-local
-      - MQTT_USERNAME=gateway
-      - MQTT_PASSWORD=${MQTT_GATEWAY_PASSWORD:-changeme}
-      - BME280_ADDRESS=0x76
-      - SENSOR_POLL_INTERVAL=60s
-      - DEVICE_STATION_ID=home
-    # BLE requires host networking or privileged mode
-    # Using privileged mode for BLE access
-    privileged: true
-    # Alternative: use network_mode: host if you need full host access
-    # network_mode: host
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      # Config/acl mounted rw so container entrypoint can chown (avoids read-only filesystem errors)
+      - ./local-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./local-broker/passwd:/mosquitto/config/passwd
+      - ./local-broker/mosquitto.acl:/mosquitto/config/acl:ro
+      - mosquitto_data_local_dev:/mosquitto/data
+      - mosquitto_log_local_dev:/mosquitto/log
+    networks:
+      - cloudpico-local-network
+
+volumes:
+  mosquitto_data_local:
+    driver: local
+  mosquitto_log_local:
+    driver: local
+
+networks:
+  cloudpico-local-network:
+    driver: bridge

@@ -1,0 +1,15 @@
+# Mosquitto Access Control List (ACL) - Local Broker
+# Format: topic [read|write|readwrite] <topic_pattern>
+# User-based ACL rules
+#
+# IMPORTANT: Local broker only communicates with:
+# - Gateway devices (using 'gateway' user)
+# - Hosted broker (via bridge - bridge runs as part of mosquitto, no ACL needed)
+
+# Gateway user: Gateway devices publish telemetry and health data to local broker
+user gateway
+topic write stations/+/telemetry
+topic write stations/+/health
+
+# Note: Bridge process doesn't need ACL permissions - it runs as part of mosquitto itself
+# The bridge automatically forwards messages based on topic patterns defined in mosquitto.conf

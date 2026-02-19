@@ -28,4 +28,5 @@ profile.cov
 # .vscode/
 
 dev/sqlite/*
-mosquitto/passwd
+hosted-broker/passwd
+local-broker/passwd
