@@ -7,7 +7,6 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      # Config/acl mounted rw so container entrypoint can chown (avoids read-only filesystem errors)
       - ./local-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./local-broker/passwd:/mosquitto/config/passwd
       - ./local-broker/mosquitto.acl:/mosquitto/config/acl:ro
@@ -18,10 +17,9 @@ services:
 
 volumes:
   mosquitto_data_local:
-    driver: local
   mosquitto_log_local:
-    driver: local
 
 networks:
   cloudpico-local-network:
     driver: bridge
+    internal: false
