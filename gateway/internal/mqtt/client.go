@@ -39,6 +39,12 @@ func NewClient(cfg config.Config) (*Client, error) {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.MQTTBroker, cfg.MQTTPort))
 	opts.SetClientID(cfg.MQTTClientID)
+	if cfg.MQTTUsername != "" {
+		opts.SetUsername(cfg.MQTTUsername)
+		if cfg.MQTTPassword != "" {
+			opts.SetPassword(cfg.MQTTPassword)
+		}
+	}
 
 	// Session settings
 	opts.SetCleanSession(true)

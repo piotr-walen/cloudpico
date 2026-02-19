@@ -109,6 +109,12 @@ func getOptions(s *Subscriber) *mqtt.ClientOptions {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(fmt.Sprintf("tcp://%s:%d", cfg.MQTTBroker, cfg.MQTTPort))
 	opts.SetClientID(cfg.MQTTClientID)
+	if cfg.MQTTUsername != "" {
+		opts.SetUsername(cfg.MQTTUsername)
+		if cfg.MQTTPassword != "" {
+			opts.SetPassword(cfg.MQTTPassword)
+		}
+	}
 	// Persistent session so the broker queues QoS 1 messages when we're disconnected
 	// and delivers them when we reconnect. Requires a stable, unique ClientID.
 	opts.SetCleanSession(false)

@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: ./gateway/Dockerfile
+    container_name: cloudpico-gateway-local
+    restart: unless-stopped
+    environment:
+      - APP_ENV=dev
+      - LOG_LEVEL=info
+      - MQTT_BROKER=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_CLIENT_ID=cloudpico-gateway-local
+      - MQTT_USERNAME=gateway
+      - MQTT_PASSWORD=${MQTT_GATEWAY_PASSWORD:-changeme}
+      - BME280_ADDRESS=0x76
+      - SENSOR_POLL_INTERVAL=60s
+      - DEVICE_STATION_ID=home
+    # BLE requires host networking or privileged mode
+    # Using privileged mode for BLE access
+    privileged: true
+    # Alternative: use network_mode: host if you need full host access
+    # network_mode: host

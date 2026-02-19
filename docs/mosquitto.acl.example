@@ -1,0 +1,13 @@
+# Mosquitto Access Control List (ACL)
+# Copy this file to mosquitto/acl and customize as needed
+# Format: topic [read|write|readwrite] <topic_pattern>
+# User-based ACL rules
+
+# Gateway user: can publish telemetry and health data
+user gateway
+topic write stations/+/telemetry
+topic write stations/+/health
+
+# Server user: can subscribe to telemetry data
+user server
+topic read stations/+/telemetry

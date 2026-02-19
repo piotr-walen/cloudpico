@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -15,6 +18,8 @@ type Config struct {
 	MQTTBroker   string
 	MQTTPort     int
 	MQTTClientID string
+	MQTTUsername string
+	MQTTPassword string
 
 	BME280Address      uint16
 	SensorPollInterval time.Duration
@@ -22,6 +27,21 @@ type Config struct {
 }
 
 func LoadFromEnv() (Config, error) {
+	// Load .env file from gateway directory if it exists
+	// Get the working directory and look for gateway/.env
+	wd, err := os.Getwd()
+
+	// Also try .env in current directory (for when running from gateway directory)
+	if err == nil && wd != "" {
+		envPath := filepath.Join(wd, ".env")
+
+		if _, err := os.Stat(envPath); err == nil {
+			if err := godotenv.Load(envPath); err != nil {
+				_ = err
+			}
+		}
+	}
+
 	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
 	if appEnv == "" {
 		appEnv = "dev"
@@ -86,12 +106,17 @@ func LoadFromEnv() (Config, error) {
 		deviceStationID = "home"
 	}
 
+	mqttUsername := strings.TrimSpace(os.Getenv("MQTT_USERNAME"))
+	mqttPassword := strings.TrimSpace(os.Getenv("MQTT_PASSWORD"))
+
 	return Config{
 		AppEnv:             appEnv,
 		LogLevel:           level,
 		MQTTBroker:         mqttBroker,
 		MQTTPort:           mqttPort,
 		MQTTClientID:       mqttClientID,
+		MQTTUsername:       mqttUsername,
+		MQTTPassword:       mqttPassword,
 		BME280Address:      uint16(bme280Address),
 		SensorPollInterval: sensorPollInterval,
 		DeviceStationID:    deviceStationID,
