@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mosquitto-local:
     image: eclipse-mosquitto:2.0
@@ -13,8 +11,8 @@ services:
       - ./local-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./local-broker/passwd:/mosquitto/config/passwd
       - ./local-broker/mosquitto.acl:/mosquitto/config/acl:ro
-      - mosquitto_data_local_dev:/mosquitto/data
-      - mosquitto_log_local_dev:/mosquitto/log
+      - mosquitto_data_local:/mosquitto/data
+      - mosquitto_log_local:/mosquitto/log
     networks:
       - cloudpico-local-network
 
