@@ -28,3 +28,4 @@ profile.cov
 # .vscode/
 
 dev/sqlite/*
+mosquitto/passwd

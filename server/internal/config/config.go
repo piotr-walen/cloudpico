@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -29,10 +31,22 @@ type Config struct {
 	MQTTBroker   string
 	MQTTPort     int
 	MQTTClientID string
+	MQTTUsername string
+	MQTTPassword string
 	MQTTTopic    string // Topic pattern to subscribe to, e.g., "stations/+/telemetry"
 }
 
 func LoadFromEnv() (Config, error) {
+	wd, err := os.Getwd()
+	if wd != "" {
+		envPath := filepath.Join(wd, ".env")
+		if _, err := os.Stat(envPath); err == nil {
+			if err := godotenv.Load(envPath); err != nil {
+				_ = err
+			}
+		}
+	}
+
 	appEnv := strings.TrimSpace(os.Getenv("APP_ENV"))
 	if appEnv == "" {
 		appEnv = "dev"
@@ -127,6 +141,11 @@ func LoadFromEnv() (Config, error) {
 		mqttTopic = "stations/+/telemetry"
 	}
 
+	mqttUsername := strings.TrimSpace(os.Getenv("MQTT_USERNAME"))
+	mqttPassword := strings.TrimSpace(os.Getenv("MQTT_PASSWORD"))
+
+	slog.Info("mqtt credentials", "username", mqttUsername, "password", mqttPassword)
+
 	return Config{
 		AppEnv:                appEnv,
 		LogLevel:              level,
@@ -141,6 +160,8 @@ func LoadFromEnv() (Config, error) {
 		MQTTBroker:            mqttBroker,
 		MQTTPort:              mqttPort,
 		MQTTClientID:          mqttClientID,
+		MQTTUsername:          mqttUsername,
+		MQTTPassword:          mqttPassword,
 		MQTTTopic:             mqttTopic,
 	}, nil
 }
