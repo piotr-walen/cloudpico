@@ -38,7 +38,7 @@ type Config struct {
 
 func LoadFromEnv() (Config, error) {
 	wd, err := os.Getwd()
-	if wd != "" {
+	if err == nil && wd != "" {
 		envPath := filepath.Join(wd, ".env")
 		if _, err := os.Stat(envPath); err == nil {
 			if err := godotenv.Load(envPath); err != nil {

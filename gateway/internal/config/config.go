@@ -32,7 +32,7 @@ func LoadFromEnv() (Config, error) {
 	wd, err := os.Getwd()
 
 	// Also try .env in current directory (for when running from gateway directory)
-	if wd != "" {
+	if err == nil && wd != "" {
 		envPath := filepath.Join(wd, ".env")
 
 		if _, err := os.Stat(envPath); err == nil {
