@@ -1,0 +1,18 @@
+{{ define "partials/history-chart.html" }}
+<div id="history-chart-container" class="history-chart-container" hx-swap-oob="true">
+  <div class="chart-controls">
+    <button type="button" 
+            id="axes-toggle" 
+            class="secondary small"
+            data-show-y-axes="false">Show Y-Axes</button>
+  </div>
+
+  <script type="application/json" id="history-chart-data" 
+    hx-get="/partials/history-chart-data" 
+    hx-trigger="every 20s, change from:#station-selector, change from:#history-range" 
+    hx-swap="outerHTML" 
+    hx-include="#station-selector, #history-range">{{ if .ChartReadingsJSON }}{{ .ChartReadingsJSON }}{{ else }}[]{{ end }}</script>
+
+  <div id="chart-area"></div>
+</div>
+{{ end }}

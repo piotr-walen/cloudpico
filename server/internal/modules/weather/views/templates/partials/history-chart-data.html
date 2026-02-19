@@ -1,0 +1,7 @@
+{{ define "partials/history-chart-data.html" }}
+<script type="application/json" id="history-chart-data" 
+  hx-get="/partials/history-chart-data" 
+  hx-trigger="every 20s, change from:#station-selector, change from:#history-range" 
+  hx-swap="outerHTML" 
+  hx-include="#station-selector, #history-range">{{ if .ChartReadingsJSON }}{{ .ChartReadingsJSON }}{{ else }}[]{{ end }}</script>
+{{ end }}

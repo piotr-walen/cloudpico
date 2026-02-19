@@ -45,8 +45,15 @@ if (PICO_CYW43_SUPPORTED)
     )
 endif()
 
-# Enable USB serial output (stdio over USB) - must be after executable creation
-pico_enable_stdio_usb(cloudpico 1)
+# Verbose/debug printing and USB serial. Set to ON for debug builds, OFF for quiet/release.
+set(CSENSOR_VERBOSE "OFF" CACHE BOOL "Enable debug printing and USB serial from csensor")
+
+# Enable USB serial only when verbose is on (must be after executable creation)
+if(CSENSOR_VERBOSE)
+    pico_enable_stdio_usb(cloudpico 1)
+else()
+    pico_enable_stdio_usb(cloudpico 0)
+endif()
 pico_enable_stdio_uart(cloudpico 0)
 
 set(DEVICE_ID "0x00000000" CACHE STRING "BLE device ID")
@@ -57,6 +64,10 @@ target_compile_definitions(cloudpico PRIVATE POLL_INTERVAL_MS=${POLL_INTERVAL_MS
 
 set(ADVERTISEMENT_INTERVAL_MS "5000" CACHE STRING "BLE advertisement interval in milliseconds")
 target_compile_definitions(cloudpico PRIVATE ADVERTISEMENT_INTERVAL_MS=${ADVERTISEMENT_INTERVAL_MS})
+
+if(CSENSOR_VERBOSE)
+    target_compile_definitions(cloudpico PRIVATE CSENSOR_VERBOSE)
+endif()
 
 # create map/bin/hex file etc.
 pico_add_extra_outputs(cloudpico)

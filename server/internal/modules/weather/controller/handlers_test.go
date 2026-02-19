@@ -41,8 +41,11 @@ func (m *mockRepo) GetReadings(stationID string, from, to time.Time, limit int, 
 	m.lastReadingsStationID = stationID
 	m.lastReadingsFrom = from
 	m.lastReadingsTo = to
-	m.lastReadingsLimit = limit
-	m.lastReadingsOffset = offset
+	// Record table call (paginated); chart call uses limit=10000 and would overwrite otherwise
+	if limit != 10000 {
+		m.lastReadingsLimit = limit
+		m.lastReadingsOffset = offset
+	}
 	return m.readings, m.readingsErr
 }
 

@@ -7,7 +7,7 @@
 <ul class="history-list">
   {{ range .Readings }}
   <li class="history-item">
-    <span class="history-time" title="{{ .Time.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Time.Format "2006-01-02 3:04:05 PM" }}</span>
+    <span class="history-time" title="{{ .Time.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Time.Format "2006-01-02 15:04:05" }}</span>
     <span class="history-values">
       <span class="history-value">{{ printf "%.1f" .Value }}°C</span>
       <span class="history-humidity">{{ printf "%.0f" .HumidityPct }}%</span>

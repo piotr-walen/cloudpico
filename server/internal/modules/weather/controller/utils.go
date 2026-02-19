@@ -27,7 +27,9 @@ var historyRanges = map[string]historyRange{
 	"1h":  {Duration: time.Hour, Label: "Last 1 hour"},
 	"6h":  {Duration: 6 * time.Hour, Label: "Last 6 hours"},
 	"24h": {Duration: 24 * time.Hour, Label: "Last 24 hours"},
+	"3d":  {Duration: 3 * 24 * time.Hour, Label: "Last 3 days"},
 	"7d":  {Duration: 7 * 24 * time.Hour, Label: "Last 7 days"},
+	"30d": {Duration: 30 * 24 * time.Hour, Label: "Last 30 days"},
 }
 
 func parseReadingsQuery(r *http.Request) (from time.Time, to time.Time, limit int, err error) {
@@ -122,6 +124,7 @@ type weatherState struct {
 	StationID string
 	RangeKey  string
 	Page      int
+	ShowYAxes *bool // nil means not set (use default), true/false means explicitly set
 }
 
 // readWeatherStateCookie parses the weather_state cookie and returns station_id, range key, and page.
@@ -146,12 +149,19 @@ func readWeatherStateCookie(r *http.Request) weatherState {
 			page = n
 		}
 	}
-	return weatherState{StationID: stationID, RangeKey: rangeKey, Page: page}
+	var showYAxes *bool
+	if s := vals.Get("show_y_axes"); s != "" {
+		if b, err := strconv.ParseBool(s); err == nil {
+			showYAxes = &b
+		}
+	}
+	return weatherState{StationID: stationID, RangeKey: rangeKey, Page: page, ShowYAxes: showYAxes}
 }
 
 // writeWeatherStateCookie sets the weather_state cookie with the given state.
 // rangeKey must be a valid history range key (use defaultHistoryRangeKey if unsure).
-func writeWeatherStateCookie(w http.ResponseWriter, stationID, rangeKey string, page int) {
+// showYAxes can be nil to not set it, or a bool pointer to set it explicitly.
+func writeWeatherStateCookie(w http.ResponseWriter, stationID, rangeKey string, page int, showYAxes *bool) {
 	if _, ok := historyRanges[rangeKey]; !ok {
 		rangeKey = defaultHistoryRangeKey
 	}
@@ -162,6 +172,9 @@ func writeWeatherStateCookie(w http.ResponseWriter, stationID, rangeKey string, 
 	val.Set("station_id", stationID)
 	val.Set("range", rangeKey)
 	val.Set("page", strconv.Itoa(page))
+	if showYAxes != nil {
+		val.Set("show_y_axes", strconv.FormatBool(*showYAxes))
+	}
 	http.SetCookie(w, &http.Cookie{
 		Name:     weatherStateCookieName,
 		Value:    val.Encode(),
