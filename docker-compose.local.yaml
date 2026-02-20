@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   mosquitto-local:
     image: eclipse-mosquitto:2.0
@@ -12,8 +14,14 @@ services:
       - ./local-broker/mosquitto.acl:/mosquitto/config/acl:ro
       - mosquitto_data_local:/mosquitto/data
       - mosquitto_log_local:/mosquitto/log
+      # CA certificates (to verify Let's Encrypt cert on the hosted broker)
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
     networks:
       - cloudpico-local-network
+    dns:
+    - 1.1.1.1
+    - 8.8.8.8
+
 
 volumes:
   mosquitto_data_local:

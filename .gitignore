@@ -30,3 +30,6 @@ profile.cov
 dev/sqlite/*
 hosted-broker/passwd
 local-broker/passwd
+
+letsencrypt/
+secrets/

@@ -1,18 +1,24 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mosquitto:
     image: eclipse-mosquitto:2.0
     container_name: cloudpico-mosquitto
     restart: unless-stopped
+
     ports:
       - "1883:1883"
+      - "8883:8883"
       - "9001:9001"
+
     volumes:
-      # Config/acl mounted rw so container entrypoint can chown (avoids ACL group warning)
       - ./hosted-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
       - ./hosted-broker/passwd:/mosquitto/config/passwd
       - ./hosted-broker/mosquitto.acl:/mosquitto/config/acl:ro
+
+      # Mount ALL letsencrypt so live/ symlinks resolve to archive/
+      - ./letsencrypt:/etc/letsencrypt
+
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     networks:
@@ -24,7 +30,6 @@ services:
       dockerfile: ./server/Dockerfile
     container_name: cloudpico-server
     restart: unless-stopped
-    # Don't expose port externally, only to nginx
     expose:
       - "8080"
     environment:
@@ -57,7 +62,7 @@ services:
       - "443:443"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./cf-origin:/etc/nginx/certs:ro # Cloudflare origin certificate ./cf-origin/origin.pem and ./cf-origin/origin.key
+      - ./letsencrypt:/etc/letsencrypt:ro
     networks:
       - cloudpico-network
     depends_on:
@@ -74,4 +79,3 @@ volumes:
 networks:
   cloudpico-network:
     driver: bridge
-
