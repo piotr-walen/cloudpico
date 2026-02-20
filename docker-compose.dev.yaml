@@ -8,13 +8,13 @@ services:
     restart: unless-stopped
     ports:
       - "1885:1883"
-      - "9001:9001"
+      - "9002:9001"
     volumes:
-      # Uses hosted-broker configuration (simulates production hosted broker)
+      # Uses development configuration (no SSL/TLS)
       # Config/acl mounted rw so container entrypoint can chown for mosquitto user (avoids group warning)
-      - ./hosted-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./hosted-broker/passwd:/mosquitto/config/passwd
-      - ./hosted-broker/mosquitto.acl:/mosquitto/config/acl:ro
+      - ./mosquitto/hosted-broker.dev.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/hosted-broker.passwd:/mosquitto/config/passwd
+      - ./mosquitto/hosted-broker.acl:/mosquitto/config/acl:ro
       - mosquitto_data_hosted_dev:/mosquitto/data
       - mosquitto_log_hosted_dev:/mosquitto/log
     networks:
@@ -26,12 +26,13 @@ services:
     restart: unless-stopped
     ports:
       - "1884:1883"
-      - "9002:9001"
+      - "9003:9001"
     volumes:
+      # Uses development configuration (no SSL/TLS, plain MQTT bridge)
       # Config/acl mounted rw so container entrypoint can chown (avoids read-only filesystem errors)
-      - ./local-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./local-broker/passwd:/mosquitto/config/passwd
-      - ./local-broker/mosquitto.acl:/mosquitto/config/acl:ro
+      - ./mosquitto/local-broker.dev.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/local-broker.passwd:/mosquitto/config/passwd
+      - ./mosquitto/local-broker.acl:/mosquitto/config/acl:ro
       - mosquitto_data_local_dev:/mosquitto/data
       - mosquitto_log_local_dev:/mosquitto/log
     networks:

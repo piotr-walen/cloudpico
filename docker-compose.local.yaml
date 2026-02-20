@@ -9,9 +9,9 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./local-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ./local-broker/passwd:/mosquitto/config/passwd
-      - ./local-broker/mosquitto.acl:/mosquitto/config/acl:ro
+      - ./mosquitto/local-broker.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/local-broker.passwd:/mosquitto/config/passwd
+      - ./mosquitto/local-broker.acl:/mosquitto/config/acl:ro
       - mosquitto_data_local:/mosquitto/data
       - mosquitto_log_local:/mosquitto/log
       # CA certificates (to verify Let's Encrypt cert on the hosted broker)
