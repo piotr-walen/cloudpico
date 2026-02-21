@@ -24,6 +24,10 @@ func (c *weatherControllerImpl) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /partials/history-chart-data", c.handleHistoryChartData)
 	mux.HandleFunc("GET /partials/stations", c.handleStationsPartial)
 	mux.HandleFunc("GET /api/v1/stations", c.handleStations)
+	mux.HandleFunc("GET /api/v1/stations/with-latest", c.handleStationsWithLatest)
 	mux.HandleFunc("GET /api/v1/stations/{id}/latest", c.handleLatest)
 	mux.HandleFunc("GET /api/v1/stations/{id}/readings", c.handleReadings)
+	mux.HandleFunc("GET /api/v1/stations/{id}/history/readings", c.handleHistoryReadings)
+	mux.HandleFunc("GET /api/v1/stations/{id}/history/chart", c.handleHistoryChart)
+	mux.HandleFunc("GET /api/v1/stations/{id}/history/count", c.handleHistoryCount)
 }

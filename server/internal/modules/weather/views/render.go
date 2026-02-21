@@ -77,10 +77,10 @@ func RenderHistory(w io.Writer, data *HistoryParams) error {
 }
 
 type StationReading struct {
-	StationID         string
-	StationName       string
-	Reading           *types.Reading
-	BatteryPercentage float64 // Calculated from Reading.BatteryV: 3.3V = 0%, 4.2V = 100%
+	StationID         string         `json:"stationId"`
+	StationName       string         `json:"stationName"`
+	Reading           *types.Reading `json:"reading"`
+	BatteryPercentage float64       `json:"batteryPercentage"` // Calculated from Reading.BatteryV: 3.3V = 0%, 4.2V = 100%
 }
 type DashboardData struct {
 	Stations []StationReading

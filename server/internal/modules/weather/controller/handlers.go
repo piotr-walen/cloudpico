@@ -160,6 +160,47 @@ func (c *weatherControllerImpl) handleStations(w http.ResponseWriter, r *http.Re
 	utils.WriteJSON(w, http.StatusOK, stations)
 }
 
+func (c *weatherControllerImpl) handleStationsWithLatest(w http.ResponseWriter, r *http.Request) {
+	stations, err := c.repository.GetStations()
+	if err != nil {
+		slog.Error("stations with latest: get stations failed", "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load stations")
+		return
+	}
+
+	result := make([]views.StationReading, 0, len(stations))
+	for _, s := range stations {
+		latest, err := c.repository.GetLatestReadings(s.ID, 1)
+		if err != nil {
+			slog.Error("stations with latest: get latest reading failed", "station_id", s.ID, "error", err)
+			// Continue with nil reading instead of failing completely
+			result = append(result, views.StationReading{
+				StationID:   s.ID,
+				StationName: s.Name,
+				Reading:     nil,
+			})
+			continue
+		}
+		if len(latest) != 0 {
+			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
+			result = append(result, views.StationReading{
+				StationID:         s.ID,
+				StationName:       s.Name,
+				Reading:           &latest[0],
+				BatteryPercentage: batteryPct,
+			})
+			continue
+		}
+		result = append(result, views.StationReading{
+			StationID:   s.ID,
+			StationName: s.Name,
+			Reading:     nil,
+		})
+	}
+
+	utils.WriteJSON(w, http.StatusOK, result)
+}
+
 func (c *weatherControllerImpl) handleLatest(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
@@ -201,6 +242,150 @@ func (c *weatherControllerImpl) handleReadings(w http.ResponseWriter, r *http.Re
 	}
 
 	utils.WriteJSON(w, http.StatusOK, readings)
+}
+
+// parseHistoryQuery parses query parameters for history endpoints: range, page, limit.
+// Returns from time, to time, page (1-based), limit, and error.
+func parseHistoryQuery(r *http.Request) (from time.Time, to time.Time, page int, limit int, err error) {
+	q := r.URL.Query()
+	
+	// Parse range
+	rangeKey := q.Get("range")
+	if rangeKey == "" {
+		rangeKey = defaultHistoryRangeKey
+	}
+	rangeInfo, ok := resolveHistoryRange(rangeKey)
+	if !ok {
+		rangeInfo, _ = resolveHistoryRange(defaultHistoryRangeKey)
+	}
+	
+	now := time.Now().UTC()
+	from = now.Add(-rangeInfo.Duration)
+	to = now
+	
+	// Parse page (1-based)
+	page = 1
+	if s := q.Get("page"); s != "" {
+		if n, convErr := strconv.Atoi(s); convErr == nil && n >= 1 {
+			page = n
+		}
+	}
+	
+	// Parse limit
+	limit = historyPageSize
+	if s := q.Get("limit"); s != "" {
+		if n, convErr := strconv.Atoi(s); convErr == nil && n > 0 && n <= 1000 {
+			limit = n
+		}
+	}
+	
+	return from, to, page, limit, nil
+}
+
+func (c *weatherControllerImpl) handleHistoryReadings(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missing station id")
+		return
+	}
+	
+	from, to, page, limit, err := parseHistoryQuery(r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	
+	offset := (page - 1) * limit
+	readings, err := c.repository.GetReadings(id, from, to, limit, offset)
+	if err != nil {
+		slog.Error("history readings: get readings failed", "station_id", id, "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load readings")
+		return
+	}
+	
+	// Ensure readings is never nil (empty slice instead)
+	if readings == nil {
+		readings = []types.Reading{}
+	}
+	
+	count, err := c.repository.GetReadingsCount(id, from, to)
+	if err != nil {
+		slog.Error("history readings: get count failed", "station_id", id, "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load count")
+		return
+	}
+	
+	totalPages := 1
+	if count > 0 {
+		totalPages = (count + limit - 1) / limit
+	}
+	
+	response := map[string]interface{}{
+		"readings":   readings,
+		"page":       page,
+		"limit":      limit,
+		"total":      count,
+		"totalPages": totalPages,
+		"hasPrev":    page > 1,
+		"hasNext":    page < totalPages,
+	}
+	
+	utils.WriteJSON(w, http.StatusOK, response)
+}
+
+func (c *weatherControllerImpl) handleHistoryChart(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missing station id")
+		return
+	}
+	
+	from, to, _, _, err := parseHistoryQuery(r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	
+	// Fetch all readings for the chart (up to 10000 to avoid performance issues)
+	chartReadings, err := c.repository.GetReadings(id, from, to, 10000, 0)
+	if err != nil {
+		slog.Error("history chart: get chart readings failed", "station_id", id, "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load chart data")
+		return
+	}
+	
+	if chartReadings == nil {
+		chartReadings = []types.Reading{}
+	}
+	
+	utils.WriteJSON(w, http.StatusOK, chartReadings)
+}
+
+func (c *weatherControllerImpl) handleHistoryCount(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		utils.WriteError(w, http.StatusBadRequest, "missing station id")
+		return
+	}
+	
+	from, to, _, _, err := parseHistoryQuery(r)
+	if err != nil {
+		utils.WriteError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	
+	count, err := c.repository.GetReadingsCount(id, from, to)
+	if err != nil {
+		slog.Error("history count: get count failed", "station_id", id, "error", err)
+		utils.WriteError(w, http.StatusInternalServerError, "failed to load count")
+		return
+	}
+	
+	response := map[string]interface{}{
+		"count": count,
+	}
+	
+	utils.WriteJSON(w, http.StatusOK, response)
 }
 
 // buildHistoryPageItems returns page numbers and ellipsis for the pagination bar.
