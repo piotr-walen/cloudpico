@@ -12,6 +12,7 @@ type Reading struct {
 	Time        time.Time `json:"time"`
 	Value       float64   `json:"value"`       // temperature °C
 	HumidityPct float64   `json:"humidityPct"` // 0–100 or 0 if unset
-	PressureHpa float64   `json:"pressureHpa"` // hPa or 0 if unset
-	BatteryV    float64   `json:"batteryV"`     // Battery voltage in volts or 0 if unset
+	PressureHpa float64   `json:"pressureHpa"`   // hPa or 0 if unset
+	BatteryV    float64   `json:"batteryV"`      // Battery voltage in volts or 0 if unset
+	BatterySOCPct float64 `json:"batterySocPct"` // 0–100 from fuel gauge, or <0 if unset
 }

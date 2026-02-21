@@ -1,7 +1,6 @@
 import { Link } from 'react-router'
 import { useStationsWithLatest } from '../../queries/stations'
 import { HistoryIcon } from '../../components/icons/HistoryIcon'
-import { calculateBatteryPercentage } from '../../utils/battery'
 import { formatReadingTime } from '../../utils/formatTime'
 
 function Root() {
@@ -38,15 +37,15 @@ function Root() {
                     <span className="reading-pressure">
                       {Math.round(station.reading.pressureHpa)} hPa
                     </span>
-                    {station.reading.batteryV > 0.0 && (
-                      <span className="reading-battery">
-                        {station.reading.batteryV.toFixed(2)}V (
-                        {station.batteryPercentage !== undefined
-                          ? station.batteryPercentage.toFixed(1)
-                          : calculateBatteryPercentage(station.reading.batteryV).toFixed(1)}
-                        %)
-                      </span>
-                    )}
+                    {station.reading.batterySocPct != null &&
+                      station.reading.batterySocPct >= 0 &&
+                      station.reading.batterySocPct <= 100 && (
+                        <span className="reading-battery">
+                          {station.reading.batteryV > 0
+                            ? `${station.reading.batteryV.toFixed(2)}V (${station.reading.batterySocPct.toFixed(0)}%)`
+                            : `${station.reading.batterySocPct.toFixed(0)}%`}
+                        </span>
+                      )}
                   </p>
                   <p
                     className="reading-time"

@@ -133,9 +133,9 @@ int main()
 
     better_print("BME280 initialized successfully.\n");
     
-    // Initialize battery voltage ADC
+    // Initialize battery fuel gauge (I2C, GP18/GP19)
     battery_voltage_init();
-    better_print("Battery voltage ADC initialized.\n");
+    better_print("Battery fuel gauge (I2C) initialized.\n");
     
     better_print("Starting sensor readings...\n\n");
 
@@ -160,20 +160,23 @@ int main()
             continue;
         }
 
-        // Read battery voltage
+        // Read battery voltage and SOC
         float battery = read_battery_voltage();
-        
+        float battery_soc = read_battery_soc();
+
         better_print("Temperature: %.2f C\n", temperature);
         better_print("Pressure:    %.3f kPa\n", pressure);
         better_print("Humidity:    %.2f %%\n", humidity);
         better_print("Battery:     %.3f V\n", battery);
+        better_print("Battery SOC: %.0f %%\n", battery_soc >= 0.0f ? battery_soc : -1.0f);
         better_print("---\n");
 
         sensor_data_t sensor_data = {
             .temperature = temperature,
             .pressure = pressure,
             .humidity = humidity,
-            .battery = battery
+            .battery = battery,
+            .battery_soc = battery_soc
         };
 
         // 2. BLE init, wait ready (main loop), advertise, run (main loop), stop, deinit

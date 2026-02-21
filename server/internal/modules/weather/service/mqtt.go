@@ -86,6 +86,7 @@ func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.We
 			"humidity", formatOptFloat(telemetry.Humidity, "%"),
 			"pressure", formatOptFloat(telemetry.Pressure, "hPa"),
 			"battery", formatOptFloat(telemetry.Battery, "V"),
+			"battery_soc", formatOptFloat(telemetry.BatterySOC, "%"),
 			"run_count", formatOptUint32(telemetry.RunCount),
 			"reading_id", formatOptUint32(telemetry.ReadingID),
 		)
@@ -97,6 +98,7 @@ func registerMQTTHandler(subscriber *internalmqtt.Subscriber, repo repository.We
 			telemetry.Humidity,
 			telemetry.Pressure,
 			telemetry.Battery,
+			telemetry.BatterySOC,
 			telemetry.RunCount,
 			telemetry.ReadingID,
 		)

@@ -12,6 +12,7 @@ export const ReadingSchema = z.object({
   humidityPct: z.number(), // 0–100 or 0 if unset
   pressureHpa: z.number(), // hPa or 0 if unset
   batteryV: z.number(), // Battery voltage in volts or 0 if unset
+  batterySocPct: z.number().optional(), // 0–100 from fuel gauge when available
 })
 
 export const StationReadingSchema = z.object({

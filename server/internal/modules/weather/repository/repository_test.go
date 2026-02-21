@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS readings (
   humidity_pct    REAL,
   pressure_hpa    REAL,
   battery_v       REAL,
+  battery_soc_pct REAL,
   run_count       INTEGER,
   reading_id      INTEGER,
   PRIMARY KEY (station_id, ts),
@@ -511,7 +512,7 @@ func TestInsertReading_ByNumericStationID(t *testing.T) {
 	hum := 65.0
 	press := 1013.25
 
-	err = repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil)
+	err = repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("InsertReading: %v", err)
 	}
@@ -550,7 +551,7 @@ func TestInsertReading_ByStationName(t *testing.T) {
 	hum := 50.0
 	press := 1015.0
 
-	err = repo.InsertReading("Alpha", ts, &temp, &hum, &press, nil, nil, nil)
+	err = repo.InsertReading("Alpha", ts, &temp, &hum, &press, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("InsertReading(Alpha): %v", err)
 	}
@@ -587,7 +588,7 @@ func TestInsertReading_InvalidHumidity(t *testing.T) {
 	t.Run("humidity_below_zero", func(t *testing.T) {
 		hum := -1.0
 		press := 1013.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for humidity -1")
 		}
@@ -599,7 +600,7 @@ func TestInsertReading_InvalidHumidity(t *testing.T) {
 	t.Run("humidity_above_100", func(t *testing.T) {
 		hum := 101.0
 		press := 1013.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for humidity 101")
 		}
@@ -628,14 +629,14 @@ func TestBatteryVoltage_PersistedAndRetrieved(t *testing.T) {
 	hum := 55.0
 	press := 1013.0
 	batteryV := 3.9
-	err = repo.InsertReading("1", tsWithBattery, &temp, &hum, &press, &batteryV, nil, nil)
+	err = repo.InsertReading("1", tsWithBattery, &temp, &hum, &press, &batteryV, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("InsertReading with battery: %v", err)
 	}
 
 	// Insert reading with nil battery (NULL in DB → 0 when read)
 	tsNoBattery := time.Date(2025, 2, 1, 13, 0, 0, 0, time.UTC)
-	err = repo.InsertReading("1", tsNoBattery, &temp, &hum, &press, nil, nil, nil)
+	err = repo.InsertReading("1", tsNoBattery, &temp, &hum, &press, nil, nil, nil, nil)
 	if err != nil {
 		t.Fatalf("InsertReading without battery: %v", err)
 	}
@@ -695,7 +696,7 @@ func TestInsertReading_InvalidPressure(t *testing.T) {
 
 	t.Run("pressure_zero", func(t *testing.T) {
 		press := 0.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for pressure 0")
 		}
@@ -706,7 +707,7 @@ func TestInsertReading_InvalidPressure(t *testing.T) {
 
 	t.Run("pressure_negative", func(t *testing.T) {
 		press := -10.0
-		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil)
+		err := repo.InsertReading("1", ts, &temp, &hum, &press, nil, nil, nil, nil)
 		if err == nil {
 			t.Fatal("InsertReading: expected error for pressure -10")
 		}
@@ -734,5 +735,5 @@ func TestRepository_ImplementsInterface(t *testing.T) {
 	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10, 0)
 	_, _ = repo.GetReadingsCount("1", time.Now().Add(-24*time.Hour), time.Now())
 	temp, hum, press := 20.0, 50.0, 1013.0
-	_ = repo.InsertReading("1", time.Now(), &temp, &hum, &press, nil, nil, nil)
+	_ = repo.InsertReading("1", time.Now(), &temp, &hum, &press, nil, nil, nil, nil)
 }

@@ -34,7 +34,7 @@ type WeatherRepository interface {
 	GetLatestReadings(stationID string, limit int) ([]types.Reading, error)
 	GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error)
 	GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error)
-	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, runCount *uint32, readingID *uint32) error
+	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, batterySOC *float64, runCount *uint32, readingID *uint32) error
 }
 
 type repositoryImpl struct {
@@ -107,8 +107,14 @@ func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 	for rows.Next() {
 		var rec types.Reading
 		var ts string
-		if err := rows.Scan(&rec.StationID, &ts, &rec.Value, &rec.HumidityPct, &rec.PressureHpa, &rec.BatteryV); err != nil {
+		var batterySOCPct sql.NullFloat64
+		if err := rows.Scan(&rec.StationID, &ts, &rec.Value, &rec.HumidityPct, &rec.PressureHpa, &rec.BatteryV, &batterySOCPct); err != nil {
 			return nil, err
+		}
+		if batterySOCPct.Valid {
+			rec.BatterySOCPct = batterySOCPct.Float64
+		} else {
+			rec.BatterySOCPct = -1
 		}
 		t, err := time.Parse(time.RFC3339Nano, ts)
 		if err != nil {
@@ -124,7 +130,7 @@ func scanReadings(rows *sql.Rows) ([]types.Reading, error) {
 	return out, rows.Err()
 }
 
-func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, runCount *uint32, readingID *uint32) error {
+func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, batterySOC *float64, runCount *uint32, readingID *uint32) error {
 	tsStr := ts.UTC().Format(time.RFC3339Nano)
 
 	// Resolve station ID - stationID might be a name or an ID string
@@ -185,6 +191,11 @@ func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperatu
 		batteryVal = *battery
 	}
 
+	var batterySOCVal interface{}
+	if batterySOC != nil && *batterySOC >= 0 {
+		batterySOCVal = *batterySOC
+	}
+
 	var runCountVal interface{}
 	if runCount != nil {
 		runCountVal = *runCount
@@ -195,7 +206,7 @@ func (r *repositoryImpl) InsertReading(stationID string, ts time.Time, temperatu
 		readingIDVal = *readingID
 	}
 
-	_, err = r.db.Exec(insertReadingSQL, dbStationID, tsStr, tempVal, humidityVal, pressureVal, batteryVal, runCountVal, readingIDVal)
+	_, err = r.db.Exec(insertReadingSQL, dbStationID, tsStr, tempVal, humidityVal, pressureVal, batteryVal, batterySOCVal, runCountVal, readingIDVal)
 	if err != nil {
 		return fmt.Errorf("insert reading: %w", err)
 	}

@@ -9,8 +9,8 @@ services:
       - "1883:1883"
       - "9001:9001"
     volumes:
-      - ./mosquitto/local-broker.conf:/mosquitto/config/mosquitto.conf
-      - ./mosquitto/local-broker.passwd:/mosquitto/config/passwd
+      - ./mosquitto/local-broker.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/local-broker.passwd:/mosquitto/config/passwd:ro
       - ./mosquitto/local-broker.acl:/mosquitto/config/acl:ro
       - mosquitto_data_local:/mosquitto/data
       - mosquitto_log_local:/mosquitto/log

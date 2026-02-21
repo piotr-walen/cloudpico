@@ -33,7 +33,6 @@ target_link_libraries(cloudpico
     hardware_i2c
     hardware_flash
     hardware_sync
-    hardware_adc
 )
 
 if (PICO_CYW43_SUPPORTED)

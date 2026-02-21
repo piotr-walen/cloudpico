@@ -80,7 +80,7 @@ type StationReading struct {
 	StationID         string         `json:"stationId"`
 	StationName       string         `json:"stationName"`
 	Reading           *types.Reading `json:"reading"`
-	BatteryPercentage float64       `json:"batteryPercentage"` // Calculated from Reading.BatteryV: 3.3V = 0%, 4.2V = 100%
+	BatteryPercentage float64       `json:"batteryPercentage"` // From Reading.BatterySOCPct when available, else calculated from BatteryV
 }
 type DashboardData struct {
 	Stations []StationReading

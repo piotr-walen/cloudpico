@@ -15,6 +15,14 @@ import (
 	"cloudpico-server/internal/utils"
 )
 
+// batteryPercentageFromReading returns SOC from fuel gauge when available (>= 0), else voltage-based estimate.
+func batteryPercentageFromReading(r types.Reading) float64 {
+	if r.BatterySOCPct >= 0 && r.BatterySOCPct <= 100 {
+		return r.BatterySOCPct
+	}
+	return views.CalculateBatteryPercentage(r.BatteryV)
+}
+
 func (c *weatherControllerImpl) handleStationsPartial(w http.ResponseWriter, r *http.Request) {
 	data := views.DashboardData{}
 	stations, err := c.repository.GetStations()
@@ -32,7 +40,7 @@ func (c *weatherControllerImpl) handleStationsPartial(w http.ResponseWriter, r *
 			return
 		}
 		if len(latest) != 0 {
-			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
+			batteryPct := batteryPercentageFromReading(latest[0])
 			data.Stations = append(data.Stations, views.StationReading{
 				StationID:         s.ID,
 				StationName:       s.Name,
@@ -78,7 +86,7 @@ func (c *weatherControllerImpl) handleDashboard(w http.ResponseWriter, r *http.R
 			return
 		}
 		if len(latest) != 0 {
-			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
+			batteryPct := batteryPercentageFromReading(latest[0])
 			data.Stations = append(data.Stations, views.StationReading{
 				StationID:         s.ID,
 				StationName:       s.Name,
@@ -182,7 +190,7 @@ func (c *weatherControllerImpl) handleStationsWithLatest(w http.ResponseWriter, 
 			continue
 		}
 		if len(latest) != 0 {
-			batteryPct := views.CalculateBatteryPercentage(latest[0].BatteryV)
+			batteryPct := batteryPercentageFromReading(latest[0])
 			result = append(result, views.StationReading{
 				StationID:         s.ID,
 				StationName:       s.Name,
