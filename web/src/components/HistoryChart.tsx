@@ -135,7 +135,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
       title: 'Weather Readings',
       width: chartRef.current.offsetWidth || 800,
       height: 400,
-      padding: [null, null, 60, null],
+      padding: [null, null, 60, 0],
       scales: {
         x: {
           time: true,
