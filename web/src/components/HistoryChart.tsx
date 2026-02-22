@@ -104,13 +104,6 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const pressureNorm = pressure.map((v) => normalize(v, PRESSURE_RANGE))
     const batteryNorm = battery.map((v) => normalize(v, BATTERY_RANGE))
 
-
-    // Un-normalize 0–100 axis tick to actual temperature for y-axis labels
-    const normToTemp = (n: number) => TEMP_RANGE[0] + (n / 100) * (TEMP_RANGE[1] - TEMP_RANGE[0])
-    const normToHumidity = (n: number) => HUMIDITY_RANGE[0] + (n / 100) * (HUMIDITY_RANGE[1] - HUMIDITY_RANGE[0])
-    const normToPressure = (n: number) => PRESSURE_RANGE[0] + (n / 100) * (PRESSURE_RANGE[1] - PRESSURE_RANGE[0])
-    const normToBattery = (n: number) => BATTERY_RANGE[0] + (n / 100) * (BATTERY_RANGE[1] - BATTERY_RANGE[0])
-
     const data: uPlot.AlignedData = [
       times,
       tempNorm,
@@ -203,17 +196,6 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           stroke: '#607D8B',
           grid: createGridConfig(gridConfig.yAxis),
           show: true,
-          label: '°C  |  %  |  hPa  |  V',
-          values: (_u: uPlot, splits: number[]) => {
-            return splits.map((val) => {
-              if (val == null || val === undefined || isNaN(val)) return ''
-              const t = normToTemp(val)
-              const h = normToHumidity(val)
-              const p = normToPressure(val)
-              const b = normToBattery(val)
-              return `${t.toFixed(0)}°C  ${h.toFixed(0)}%  ${p.toFixed(0)}  ${b.toFixed(2)}V`
-            })
-          },
         },
       ],
       legend: {
