@@ -20,14 +20,9 @@ const getHistoryReadings = async (
   page: number = 1,
   limit: number = 20
 ): Promise<HistoryReadingsResponse> => {
-  const url = new URL(
-    `${import.meta.env.VITE_API_URL}/stations/${stationId}/history/readings`
-  )
-  url.searchParams.set('range', range)
-  url.searchParams.set('page', page.toString())
-  url.searchParams.set('limit', limit.toString())
-
-  const response = await fetch(url.toString())
+  const path = `${import.meta.env.VITE_API_URL}/stations/${stationId}/history/readings`
+  const url = `${path}?${new URLSearchParams({ range, page: page.toString(), limit: limit.toString() })}`
+  const response = await fetch(url)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch history readings: ${response.statusText}`)
@@ -41,12 +36,9 @@ const getHistoryChart = async (
   stationId: string,
   range: string
 ): Promise<z.infer<typeof ReadingSchema>[]> => {
-  const url = new URL(
-    `${import.meta.env.VITE_API_URL}/stations/${stationId}/history/chart`
-  )
-  url.searchParams.set('range', range)
-
-  const response = await fetch(url.toString())
+  const path = `${import.meta.env.VITE_API_URL}/stations/${stationId}/history/chart`
+  const url = `${path}?${new URLSearchParams({ range })}`
+  const response = await fetch(url)
 
   if (!response.ok) {
     throw new Error(`Failed to fetch chart data: ${response.statusText}`)
