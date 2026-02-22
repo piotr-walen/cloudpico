@@ -107,6 +107,12 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const fmtFixedRange = ([lo, hi]: readonly [number, number], decimals = 1) =>
       ` (${lo.toFixed(decimals)} – ${hi.toFixed(decimals)})`
 
+    // Un-normalize 0–100 axis tick to actual temperature for y-axis labels
+    const normToTemp = (n: number) => TEMP_RANGE[0] + (n / 100) * (TEMP_RANGE[1] - TEMP_RANGE[0])
+    const normToHumidity = (n: number) => HUMIDITY_RANGE[0] + (n / 100) * (HUMIDITY_RANGE[1] - HUMIDITY_RANGE[0])
+    const normToPressure = (n: number) => PRESSURE_RANGE[0] + (n / 100) * (PRESSURE_RANGE[1] - PRESSURE_RANGE[0])
+    const normToBattery = (n: number) => BATTERY_RANGE[0] + (n / 100) * (BATTERY_RANGE[1] - BATTERY_RANGE[0])
+
     const data: uPlot.AlignedData = [
       times,
       tempNorm,
@@ -153,7 +159,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatTimeValue,
         },
         {
-          label: `Temperature (°C)${fmtFixedRange(TEMP_RANGE)}`,
+          label: `Temperature (°C)`,
           stroke: '#e74c3c',
           width: 2,
           scale: 'y',
@@ -161,7 +167,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatRaw(temperatures, '°C'),
         },
         {
-          label: `Humidity (%)${fmtFixedRange(HUMIDITY_RANGE)}`,
+          label: `Humidity (%)`,
           stroke: '#3498db',
           width: 2,
           scale: 'y',
@@ -169,7 +175,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatRaw(humidity, '%'),
         },
         {
-          label: `Pressure (hPa)${fmtFixedRange(PRESSURE_RANGE, 0)}`,
+          label: `Pressure (hPa)`,
           stroke: '#2ecc71',
           width: 2,
           scale: 'y',
@@ -177,7 +183,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatRaw(pressure, 'hPa'),
         },
         {
-          label: `Battery (V)${fmtFixedRange(BATTERY_RANGE, 2)}`,
+          label: `Battery (V)`,
           stroke: '#f39c12',
           width: 2,
           scale: 'y',
@@ -199,7 +205,17 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           stroke: '#607D8B',
           grid: createGridConfig(gridConfig.yAxis),
           show: true,
-          label: 'Normalized (0–100)',
+          label: '°C  |  %  |  hPa  |  V',
+          values: (_u: uPlot, splits: number[]) => {
+            return splits.map((val) => {
+              if (val == null || val === undefined || isNaN(val)) return ''
+              const t = normToTemp(val)
+              const h = normToHumidity(val)
+              const p = normToPressure(val)
+              const b = normToBattery(val)
+              return `${t.toFixed(0)}°C  ${h.toFixed(0)}%  ${p.toFixed(0)}  ${b.toFixed(2)}V`
+            })
+          },
         },
       ],
       legend: {
