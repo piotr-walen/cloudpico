@@ -104,8 +104,6 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const pressureNorm = pressure.map((v) => normalize(v, PRESSURE_RANGE))
     const batteryNorm = battery.map((v) => normalize(v, BATTERY_RANGE))
 
-    const fmtFixedRange = ([lo, hi]: readonly [number, number], decimals = 1) =>
-      ` (${lo.toFixed(decimals)} – ${hi.toFixed(decimals)})`
 
     // Un-normalize 0–100 axis tick to actual temperature for y-axis labels
     const normToTemp = (n: number) => TEMP_RANGE[0] + (n / 100) * (TEMP_RANGE[1] - TEMP_RANGE[0])
