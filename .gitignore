@@ -32,7 +32,7 @@ dev/sqlite/*
 # Mosquitto password files (contain hashed credentials)
 *.passwd
 **/*.passwd
-hosted-broker/passwd
+remote-broker/passwd
 local-broker/passwd
 
 letsencrypt/
