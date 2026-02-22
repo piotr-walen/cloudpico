@@ -12,9 +12,9 @@ services:
       - "9001:9001"
 
     volumes:
-      - ./mosquitto/hosted-broker/hosted-broker.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/hosted-broker/hosted-broker.passwd:/mosquitto/config/passwd:ro
-      - ./mosquitto/hosted-broker/hosted-broker.acl:/mosquitto/config/acl:ro
+      - ./remote-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./remote-broker/passwd:/mosquitto/config/passwd:ro
+      - ./remote-broker/acl:/mosquitto/config/acl:ro
 
       # Mount ALL letsencrypt so live/ symlinks resolve to archive/
       - ./letsencrypt:/etc/letsencrypt
