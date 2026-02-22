@@ -196,6 +196,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           stroke: '#607D8B',
           grid: createGridConfig(gridConfig.yAxis),
           show: true,
+          values: (_u, splits) => splits.map(() => ''),
         },
       ],
       legend: {
