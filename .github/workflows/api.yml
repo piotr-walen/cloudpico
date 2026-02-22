@@ -15,7 +15,7 @@ jobs:
     defaults:
       run:
         shell: bash
-        working-directory: server
+        working-directory: api
 
     steps:
       - name: Checkout
@@ -24,9 +24,9 @@ jobs:
       - name: Setup Go (from go.mod) + cache
         uses: actions/setup-go@v5
         with:
-          go-version-file: server/go.mod
+          go-version-file: api/go.mod
           cache: true
-          cache-dependency-path: server/go.sum
+          cache-dependency-path: api/go.sum
 
       - name: Build
         run: go build ./...
@@ -34,7 +34,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v8
         with:
-          working-directory: server
+          working-directory: api
 
       - name: Run unit tests
         run: |

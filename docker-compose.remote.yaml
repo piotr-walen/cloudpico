@@ -46,7 +46,7 @@ services:
       - MQTT_PORT=1883
       - MQTT_CLIENT_ID=cloudpico-api
       - MQTT_USERNAME=server
-      - MQTT_PASSWORD=${MQTT_SERVER_PASSWORD:-changeme}
+      - MQTT_PASSWORD=${MQTT_API_PASSWORD:-changeme}
       - MQTT_TOPIC=stations/+/telemetry
     volumes:
       - server_data:/app/data
