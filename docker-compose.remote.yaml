@@ -28,7 +28,7 @@ services:
     build:
       context: .
       dockerfile: ./server/Dockerfile
-    container_name: cloudpico-server
+    container_name: cloudpico-api
     restart: unless-stopped
     expose:
       - "8080"
@@ -44,7 +44,7 @@ services:
       - SQLITE_CONN_MAX_LIFETIME=0s
       - MQTT_BROKER=mosquitto
       - MQTT_PORT=1883
-      - MQTT_CLIENT_ID=cloudpico-server
+      - MQTT_CLIENT_ID=cloudpico-api
       - MQTT_USERNAME=server
       - MQTT_PASSWORD=${MQTT_SERVER_PASSWORD:-changeme}
       - MQTT_TOPIC=stations/+/telemetry

@@ -1,0 +1,53 @@
+Install go 1.25.6
+```
+https://go.dev/doc/install
+```
+
+Build server with linker flags
+```
+APP_ENV=prod go build -o bin/cloudpico-api -ldflags "-X main.version=1.2.3" ./... 
+```
+
+Install linter locally
+```
+https://golangci-lint.run/docs/welcome/install/local/
+```
+
+Run linter
+```
+golangci-lint run ./...
+```
+
+Run tests
+```
+go test ./...
+```
+
+Run tests with coverage
+```
+go test -coverpkg=./... -coverprofile=coverage.out -covermode=atomic -timeout 2m ./...
+```
+
+Display coverage
+```
+go tool cover -func=coverage.out
+```
+
+Run e2e test
+```
+go test -v ./... -tags=e2e
+```
+
+Docker Container commands (dev)
+
+```
+docker build -t cloudpico-api .
+```
+
+```
+docker run --rm -p 8080:8080 \
+  -v /<project-path>/dev/sqlite:/app/data \
+  -e SQLITE_PATH=/app/data/app.db \
+  -e STATIC_DIR=/app/static \
+  cloudpico-api
+```
