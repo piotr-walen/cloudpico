@@ -104,21 +104,8 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const pressureNorm = pressure.map((v) => normalize(v, PRESSURE_RANGE))
     const batteryNorm = battery.map((v) => normalize(v, BATTERY_RANGE))
 
-    function minMax(arr: (number | null)[]): { min: number; max: number } | null {
-      const valid = arr.filter((v): v is number => v != null)
-      if (valid.length === 0) return null
-      return { min: Math.min(...valid), max: Math.max(...valid) }
-    }
-
-    const tempMm = minMax(temperatures)
-    const humidityMm = minMax(humidity)
-    const pressureMm = minMax(pressure)
-    const batteryMm = minMax(battery)
-
-    const fmtRange = (mm: { min: number; max: number } | null, decimals = 1) =>
-      mm
-        ? ` (${mm.min.toFixed(decimals)} – ${mm.max.toFixed(decimals)})`
-        : ''
+    const fmtFixedRange = ([lo, hi]: readonly [number, number], decimals = 1) =>
+      ` (${lo.toFixed(decimals)} – ${hi.toFixed(decimals)})`
 
     const data: uPlot.AlignedData = [
       times,
@@ -166,7 +153,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatTimeValue,
         },
         {
-          label: `Temperature (°C)${fmtRange(tempMm)}`,
+          label: `Temperature (°C)${fmtFixedRange(TEMP_RANGE)}`,
           stroke: '#e74c3c',
           width: 2,
           scale: 'y',
@@ -174,7 +161,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatRaw(temperatures, '°C'),
         },
         {
-          label: `Humidity (%)${fmtRange(humidityMm)}`,
+          label: `Humidity (%)${fmtFixedRange(HUMIDITY_RANGE)}`,
           stroke: '#3498db',
           width: 2,
           scale: 'y',
@@ -182,7 +169,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatRaw(humidity, '%'),
         },
         {
-          label: `Pressure (hPa)${fmtRange(pressureMm, 0)}`,
+          label: `Pressure (hPa)${fmtFixedRange(PRESSURE_RANGE, 0)}`,
           stroke: '#2ecc71',
           width: 2,
           scale: 'y',
@@ -190,7 +177,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           value: formatRaw(pressure, 'hPa'),
         },
         {
-          label: `Battery (V)${fmtRange(batteryMm, 2)}`,
+          label: `Battery (V)${fmtFixedRange(BATTERY_RANGE, 2)}`,
           stroke: '#f39c12',
           width: 2,
           scale: 'y',
