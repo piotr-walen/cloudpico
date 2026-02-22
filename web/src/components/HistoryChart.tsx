@@ -76,6 +76,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const humidity: (number | null)[] = []
     const pressure: (number | null)[] = []
     const battery: (number | null)[] = []
+    const batterySoc: (number | null)[] = []
 
     sortedReadings.forEach((reading) => {
       times.push(new Date(reading.time).getTime())
@@ -83,6 +84,11 @@ export function HistoryChart({ readings }: HistoryChartProps) {
       humidity.push(reading.humidityPct > 0 ? reading.humidityPct : null)
       pressure.push(reading.pressureHpa > 0 ? reading.pressureHpa : null)
       battery.push(reading.batteryV > 0 ? reading.batteryV : null)
+      batterySoc.push(
+        reading.batterySocPct != null && reading.batterySocPct >= 0 && reading.batterySocPct <= 100
+          ? reading.batterySocPct
+          : null
+      )
     })
 
     // Normalize all series to 0–100 for a single shared y-axis
@@ -90,6 +96,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const HUMIDITY_RANGE = [0, 100] as const
     const PRESSURE_RANGE = [900, 1100] as const
     const BATTERY_RANGE = [3, 5] as const
+    const BATTERY_SOC_RANGE = [0, 100] as const
 
     function normalize(
       val: number | null,
@@ -103,6 +110,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
     const humidityNorm = humidity.map((v) => normalize(v, HUMIDITY_RANGE))
     const pressureNorm = pressure.map((v) => normalize(v, PRESSURE_RANGE))
     const batteryNorm = battery.map((v) => normalize(v, BATTERY_RANGE))
+    const batterySocNorm = batterySoc.map((v) => normalize(v, BATTERY_SOC_RANGE))
 
     const data: uPlot.AlignedData = [
       times,
@@ -110,6 +118,7 @@ export function HistoryChart({ readings }: HistoryChartProps) {
       humidityNorm,
       pressureNorm,
       batteryNorm,
+      batterySocNorm,
     ]
 
     const minTime = times[0]
@@ -180,6 +189,14 @@ export function HistoryChart({ readings }: HistoryChartProps) {
           scale: 'y',
           points: { show: false },
           value: formatRaw(battery, 'V'),
+        },
+        {
+          label: `Battery SOC (%)`,
+          stroke: '#9b59b6',
+          width: 2,
+          scale: 'y',
+          points: { show: false },
+          value: formatRaw(batterySoc, '%'),
         },
       ],
       axes: [
