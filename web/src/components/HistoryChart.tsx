@@ -86,12 +86,31 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
       battery.push(reading.batteryV > 0 ? reading.batteryV : null)
     })
 
+    // Normalize all series to 0–100 for a single shared y-axis
+    const TEMP_RANGE = [-50, 50] as const
+    const HUMIDITY_RANGE = [0, 100] as const
+    const PRESSURE_RANGE = [900, 1100] as const
+    const BATTERY_RANGE = [3, 5] as const
+
+    function normalize(
+      val: number | null,
+      [lo, hi]: readonly [number, number]
+    ): number | null {
+      if (val == null) return null
+      return ((val - lo) / (hi - lo)) * 100
+    }
+
+    const tempNorm = temperatures.map((v) => normalize(v, TEMP_RANGE))
+    const humidityNorm = humidity.map((v) => normalize(v, HUMIDITY_RANGE))
+    const pressureNorm = pressure.map((v) => normalize(v, PRESSURE_RANGE))
+    const batteryNorm = battery.map((v) => normalize(v, BATTERY_RANGE))
+
     const data: uPlot.AlignedData = [
       times,
-      temperatures,
-      humidity,
-      pressure,
-      battery,
+      tempNorm,
+      humidityNorm,
+      pressureNorm,
+      batteryNorm,
     ]
 
     const minTime = times[0]
@@ -103,7 +122,16 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
       yAxis: { show: showYAxes, stroke: '#607D8B', width: 1 },
     }
 
-    // Options matching server/static/js/history-chart.js
+    // Legend shows actual values; chart uses normalized 0–100 scale
+    const formatRaw =
+      (raw: (number | null)[], unit: string) =>
+      (_u: uPlot, _val: number, _seriesIdx: number) => {
+        const idx = _u.cursor?.idx
+        if (idx == null) return '—'
+        const v = raw[idx]
+        return v != null ? `${v} ${unit}` : '—'
+      }
+
     const opts: uPlot.Options = {
       title: 'Weather Readings',
       width: chartRef.current.offsetWidth || 800,
@@ -115,16 +143,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           range: [minTime - padding, maxTime + padding] as [number, number],
         },
         y: {
-          range: [-50, 50] as [number, number],
-        },
-        y1: {
           range: [0, 100] as [number, number],
-        },
-        y2: {
-          range: [900, 1100] as [number, number],
-        },
-        y3: {
-          range: [3, 5] as [number, number],
         },
       },
       series: [
@@ -137,27 +156,31 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           width: 2,
           scale: 'y',
           points: { show: false },
+          value: formatRaw(temperatures, '°C'),
         },
         {
           label: 'Humidity (%)',
           stroke: '#3498db',
           width: 2,
-          scale: 'y1',
+          scale: 'y',
           points: { show: false },
+          value: formatRaw(humidity, '%'),
         },
         {
           label: 'Pressure (hPa)',
           stroke: '#2ecc71',
           width: 2,
-          scale: 'y2',
+          scale: 'y',
           points: { show: false },
+          value: formatRaw(pressure, 'hPa'),
         },
         {
           label: 'Battery (V)',
           stroke: '#f39c12',
           width: 2,
-          scale: 'y3',
+          scale: 'y',
           points: { show: false },
+          value: formatRaw(battery, 'V'),
         },
       ],
       axes: [
@@ -174,28 +197,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           stroke: '#607D8B',
           grid: createGridConfig(gridConfig.yAxis),
           show: showYAxes,
-          label: 'Temperature (°C)',
-        },
-        {
-          scale: 'y1',
-          stroke: '#607D8B',
-          grid: createGridConfig({ ...gridConfig.yAxis, show: false }),
-          show: showYAxes,
-          label: 'Humidity (%)',
-        },
-        {
-          scale: 'y2',
-          stroke: '#607D8B',
-          grid: createGridConfig({ ...gridConfig.yAxis, show: false }),
-          show: showYAxes,
-          label: 'Pressure (hPa)',
-        },
-        {
-          scale: 'y3',
-          stroke: '#607D8B',
-          grid: createGridConfig({ ...gridConfig.yAxis, show: false }),
-          show: showYAxes,
-          label: 'Battery (V)',
+          label: 'Normalized (0–100)',
         },
       ],
       legend: {
