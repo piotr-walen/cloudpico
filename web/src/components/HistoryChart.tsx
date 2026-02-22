@@ -5,7 +5,6 @@ import type { Reading } from '../schemas/weather'
 
 interface HistoryChartProps {
   readings: Reading[]
-  showYAxes: boolean
 }
 
 // Mirror server/static/js/history-chart.js grid config
@@ -51,7 +50,7 @@ function formatTimeValue(_u: uPlot, val: number): string {
   return `${day}/${month}/${year} ${hours}:${minutes}`
 }
 
-export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
+export function HistoryChart({ readings }: HistoryChartProps) {
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstanceRef = useRef<uPlot | null>(null)
 
@@ -105,6 +104,22 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
     const pressureNorm = pressure.map((v) => normalize(v, PRESSURE_RANGE))
     const batteryNorm = battery.map((v) => normalize(v, BATTERY_RANGE))
 
+    function minMax(arr: (number | null)[]): { min: number; max: number } | null {
+      const valid = arr.filter((v): v is number => v != null)
+      if (valid.length === 0) return null
+      return { min: Math.min(...valid), max: Math.max(...valid) }
+    }
+
+    const tempMm = minMax(temperatures)
+    const humidityMm = minMax(humidity)
+    const pressureMm = minMax(pressure)
+    const batteryMm = minMax(battery)
+
+    const fmtRange = (mm: { min: number; max: number } | null, decimals = 1) =>
+      mm
+        ? ` (${mm.min.toFixed(decimals)} – ${mm.max.toFixed(decimals)})`
+        : ''
+
     const data: uPlot.AlignedData = [
       times,
       tempNorm,
@@ -119,7 +134,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
 
     const gridConfig = {
       xAxis: { show: true, stroke: '#607D8B', width: 1 },
-      yAxis: { show: showYAxes, stroke: '#607D8B', width: 1 },
+      yAxis: { show: true, stroke: '#607D8B', width: 1 },
     }
 
     // Legend shows actual values; chart uses normalized 0–100 scale
@@ -151,7 +166,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           value: formatTimeValue,
         },
         {
-          label: 'Temperature (°C)',
+          label: `Temperature (°C)${fmtRange(tempMm)}`,
           stroke: '#e74c3c',
           width: 2,
           scale: 'y',
@@ -159,7 +174,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           value: formatRaw(temperatures, '°C'),
         },
         {
-          label: 'Humidity (%)',
+          label: `Humidity (%)${fmtRange(humidityMm)}`,
           stroke: '#3498db',
           width: 2,
           scale: 'y',
@@ -167,7 +182,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           value: formatRaw(humidity, '%'),
         },
         {
-          label: 'Pressure (hPa)',
+          label: `Pressure (hPa)${fmtRange(pressureMm, 0)}`,
           stroke: '#2ecc71',
           width: 2,
           scale: 'y',
@@ -175,7 +190,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           value: formatRaw(pressure, 'hPa'),
         },
         {
-          label: 'Battery (V)',
+          label: `Battery (V)${fmtRange(batteryMm, 2)}`,
           stroke: '#f39c12',
           width: 2,
           scale: 'y',
@@ -196,7 +211,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
           scale: 'y',
           stroke: '#607D8B',
           grid: createGridConfig(gridConfig.yAxis),
-          show: showYAxes,
+          show: true,
           label: 'Normalized (0–100)',
         },
       ],
@@ -227,7 +242,7 @@ export function HistoryChart({ readings, showYAxes }: HistoryChartProps) {
         chartInstanceRef.current = null
       }
     }
-  }, [readings, showYAxes])
+  }, [readings])
 
   return <div ref={chartRef} id="history-chart-container" />
 }

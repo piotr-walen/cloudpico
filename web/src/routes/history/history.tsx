@@ -20,13 +20,11 @@ const DEFAULT_RANGE = '24h'
 interface HistoryState {
   stationId: string | null
   range: string
-  showYAxes: boolean
 }
 
 type HistoryAction =
   | { type: 'SET_STATION'; stationId: string | null }
   | { type: 'SET_RANGE'; range: string }
-  | { type: 'SET_SHOW_Y_AXES'; showYAxes: boolean }
 
 function historyReducer(
   state: HistoryState,
@@ -37,8 +35,6 @@ function historyReducer(
       return { ...state, stationId: action.stationId }
     case 'SET_RANGE':
       return { ...state, range: action.range }
-    case 'SET_SHOW_Y_AXES':
-      return { ...state, showYAxes: action.showYAxes }
     default:
       return state
   }
@@ -61,7 +57,6 @@ function History() {
     {
       stationId: initialStationId,
       range: DEFAULT_RANGE,
-      showYAxes: typeof window !== 'undefined' && window.innerWidth >= 768,
     },
     (initial): HistoryState => {
       // Initialize from localStorage, but ensure stationId is valid
@@ -140,22 +135,6 @@ function History() {
               ))}
             </select>
           </div>
-
-          <div className="form-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={state.showYAxes}
-                onChange={(e) =>
-                  dispatch({
-                    type: 'SET_SHOW_Y_AXES',
-                    showYAxes: e.target.checked,
-                  })
-                }
-              />
-              Show Y-axes
-            </label>
-          </div>
         </div>
 
         {stationsLoading && <div>Loading stations...</div>}
@@ -181,7 +160,7 @@ function History() {
 
         {chartData && chartData.length > 0 && (
           <div className="chart-container">
-            <HistoryChart readings={chartData} showYAxes={state.showYAxes} />
+            <HistoryChart readings={chartData} />
           </div>
         )}
 
