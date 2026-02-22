@@ -37,8 +37,10 @@ services:
       - MQTT_USERNAME=${MQTT_GATEWAY_USERNAME:-gateway}
       - MQTT_PASSWORD=${MQTT_GATEWAY_PASSWORD:-your-gateway-password}
     volumes:
-      # D-Bus system bus: required for BlueZ (gateway talks to host Bluetooth via D-Bus)
+      # D-Bus system bus: required for BlueZ (gateway talks to host Bluetooth via D-Bus).
+      # Mount at both paths: godbus looks for /var/run/dbus/system_bus_socket; host uses /run/dbus.
       - /run/dbus:/run/dbus:ro
+      - /run/dbus:/var/run/dbus:ro
     # Bluetooth (BlueZ): gateway talks to host's BlueZ over D-Bus; privileged gives hardware access for BLE.
     # On host: sudo apt install bluez && sudo systemctl enable --now bluetooth
     privileged: true
