@@ -4,7 +4,7 @@
 #
 # IMPORTANT: Hosted broker only communicates with:
 # - Local brokers (via bridge connections using 'bridge' user)
-# - Server (subscribes using 'server' user)
+# - API (subscribes using 'api' user)
 # Gateway devices connect to local brokers, NOT directly to hosted broker
 
 # Bridge user: Local brokers connect via bridge and publish telemetry data
@@ -13,7 +13,7 @@ user bridge
 topic write stations/+/telemetry
 topic write stations/+/health
 
-# Server user: Server subscribes to telemetry data from hosted broker
-user server
+# API user: API subscribes to telemetry data from hosted broker
+user api
 topic read stations/+/telemetry
 topic read stations/+/health
