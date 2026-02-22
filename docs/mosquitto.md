@@ -4,23 +4,23 @@
 
 The project uses two Mosquitto broker roles:
 
-- **Local broker** (`local-broker/`) – Runs near the gateway. The gateway publishes to this broker; it bridges selected topics to the hosted broker.
-- **Hosted broker** (`hosted-broker/`) – Central broker. Local brokers bridge to it; the server subscribes here.
+- **Local broker** (`local-broker/`) – Runs near the gateway. The gateway publishes to this broker; it bridges selected topics to the remote broker.
+- **Remote broker** (`remote-broker/`) – Central/hosted broker. Local brokers bridge to it; the API subscribes here.
 
-Configuration files (`mosquitto.conf`, `mosquitto.acl`) are already in `local-broker/` and `hosted-broker/`. You only need to create the password files.
+Configuration files (`mosquitto.conf`, `mosquitto.acl`) are already in `local-broker/` and `remote-broker/`. You only need to create or update the password files.
 
 ## Setting Up Authentication
 
-### Hosted broker (`hosted-broker/passwd`)
+### Remote broker (`remote-broker/passwd`)
 
-Users: `bridge` (used by local broker bridge), `server` (used by the app server).
+Users: `bridge` (used by local broker bridge), `api` (used by the API to subscribe to telemetry).
 
 ```bash
-# Create password file with bridge user (required for local→hosted bridge)
-mosquitto_passwd -c -b hosted-broker/passwd bridge "your-bridge-password"
+# Create password file with bridge user (required for local→remote bridge)
+mosquitto_passwd -c -b remote-broker/passwd bridge "your-bridge-password"
 
-# Add server user (for server subscribing to telemetry)
-mosquitto_passwd -b hosted-broker/passwd server "your-server-password"
+# Add api user (for API subscribing to telemetry)
+mosquitto_passwd -b remote-broker/passwd api "your-api-password"
 ```
 
 ### Local broker (`local-broker/passwd`)
@@ -34,9 +34,9 @@ mosquitto_passwd -c -b local-broker/passwd gateway "your-gateway-password"
 ### Updating passwords
 
 ```bash
-# Hosted broker
-mosquitto_passwd -b hosted-broker/passwd bridge "new-bridge-password"
-mosquitto_passwd -b hosted-broker/passwd server "new-server-password"
+# Remote broker
+mosquitto_passwd -b remote-broker/passwd bridge "new-bridge-password"
+mosquitto_passwd -b remote-broker/passwd api "new-api-password"
 
 # Local broker
 mosquitto_passwd -b local-broker/passwd gateway "new-gateway-password"
@@ -44,20 +44,15 @@ mosquitto_passwd -b local-broker/passwd gateway "new-gateway-password"
 
 ## Environment Variables
 
-Set these for docker-compose (or in a `.env` file in the project root):
-
-```bash
-export MQTT_API_PASSWORD="your-server-password"    # server user on hosted broker
-export MQTT_GATEWAY_PASSWORD="your-gateway-password"  # gateway user on local broker
-export MQTT_BRIDGE_PASSWORD="your-bridge-password"    # bridge user on hosted broker (used by local broker)
-export MQTT_HOSTED_BROKER_ADDRESS="host:1883"         # only for local broker (e.g. mosquitto-hosted:1883 in dev)
-```
-
-Or in `.env`:
+For the **API** (`api/.env`), set at least:
 
 ```env
-MQTT_API_PASSWORD=your-server-password
-MQTT_GATEWAY_PASSWORD=your-gateway-password
-MQTT_BRIDGE_PASSWORD=your-bridge-password
-MQTT_HOSTED_BROKER_ADDRESS=hosted-broker.example.com:1883
+MQTT_BROKER=localhost
+MQTT_PORT=1885
+MQTT_USERNAME=api
+MQTT_PASSWORD=your-api-password
+MQTT_TOPIC=stations/+/telemetry
 ```
+
+For dev, the remote broker is exposed on host port 1885 (see `docker-compose.dev.yaml`). The password must match the one used in `remote-broker/passwd` for user `api` and `bridge`. After changing the passwd file.
+Local broker is exposed on host port 1884 (see `docker-compose.dev.yaml`). The password must match the one used in `local-broker/passwd` for user `gateway`. After changing the passwd file. Restart the broker container so it reloads.
