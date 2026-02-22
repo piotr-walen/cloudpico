@@ -34,6 +34,9 @@ type Config struct {
 	MQTTUsername string
 	MQTTPassword string
 	MQTTTopic    string // Topic pattern to subscribe to, e.g., "stations/+/telemetry"
+
+	// CORSAllowedOrigins are origins allowed for CORS (e.g. dev frontend). Set via CORS_ALLOWED_ORIGINS (comma-separated). Default: localhost and 127.0.0.1 on port 5173.
+	CORSAllowedOrigins []string
 }
 
 func LoadFromEnv() (Config, error) {
@@ -144,7 +147,11 @@ func LoadFromEnv() (Config, error) {
 	mqttUsername := strings.TrimSpace(os.Getenv("MQTT_USERNAME"))
 	mqttPassword := strings.TrimSpace(os.Getenv("MQTT_PASSWORD"))
 
-	slog.Info("mqtt credentials", "username", mqttUsername, "password", mqttPassword)
+	corsOriginsStr := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
+	if corsOriginsStr == "" {
+		corsOriginsStr = "http://localhost:5173,http://127.0.0.1:5173"
+	}
+	corsAllowedOrigins := parseCommaSeparated(corsOriginsStr)
 
 	return Config{
 		AppEnv:                appEnv,
@@ -163,7 +170,20 @@ func LoadFromEnv() (Config, error) {
 		MQTTUsername:          mqttUsername,
 		MQTTPassword:          mqttPassword,
 		MQTTTopic:             mqttTopic,
+		CORSAllowedOrigins:    corsAllowedOrigins,
 	}, nil
+}
+
+// parseCommaSeparated splits s by comma and returns non-empty trimmed elements.
+func parseCommaSeparated(s string) []string {
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			out = append(out, trimmed)
+		}
+	}
+	return out
 }
 
 func parseLogLevel(s string) (slog.Level, error) {
