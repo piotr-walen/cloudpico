@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { StationsWithLatestSchema, StationSchema } from '../schemas/weather'
 
 const getStationsWithLatest = async () => {
-  const url = `${import.meta.env.VITE_API_URL}/api/v1/stations/with-latest`
+  const url = `${import.meta.env.VITE_API_URL}/stations/with-latest`
   const response = await fetch(url)
   
   if (!response.ok) {
@@ -15,7 +15,7 @@ const getStationsWithLatest = async () => {
 }
 
 export const getStations = async () => {
-  const url = `${import.meta.env.VITE_API_URL}/api/v1/stations`
+  const url = `${import.meta.env.VITE_API_URL}/stations`
   const response = await fetch(url)
   
   if (!response.ok) {

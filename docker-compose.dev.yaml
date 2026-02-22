@@ -12,9 +12,9 @@ services:
     volumes:
       # Uses development configuration (no SSL/TLS)
       # Config/acl mounted rw so container entrypoint can chown for mosquitto user (avoids group warning)
-      - ./mosquitto/hosted-broker.dev.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/hosted-broker.passwd:/mosquitto/config/passwd:ro
-      - ./mosquitto/hosted-broker.acl:/mosquitto/config/acl:ro
+      - ./hosted-broker/hosted-broker.dev.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./hosted-broker/hosted-broker.passwd:/mosquitto/config/passwd:ro
+      - ./hosted-broker/hosted-broker.acl:/mosquitto/config/acl:ro
       - mosquitto_data_hosted_dev:/mosquitto/data
       - mosquitto_log_hosted_dev:/mosquitto/log
     networks:
@@ -30,9 +30,9 @@ services:
     volumes:
       # Uses development configuration (no SSL/TLS, plain MQTT bridge)
       # Config/acl mounted rw so container entrypoint can chown (avoids read-only filesystem errors)
-      - ./mosquitto/local-broker.dev.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/local-broker.passwd:/mosquitto/config/passwd:ro
-      - ./mosquitto/local-broker.acl:/mosquitto/config/acl:ro
+      - ./remote-broker/remote-broker.dev.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./remote-broker/remote-broker.passwd:/mosquitto/config/passwd:ro
+      - ./remote-broker/remote-broker.acl:/mosquitto/config/acl:ro
       - mosquitto_data_local_dev:/mosquitto/data
       - mosquitto_log_local_dev:/mosquitto/log
     networks:

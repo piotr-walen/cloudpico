@@ -12,9 +12,9 @@ services:
       - "9001:9001"
 
     volumes:
-      - ./mosquitto/hosted-broker.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mosquitto/hosted-broker.passwd:/mosquitto/config/passwd:ro
-      - ./mosquitto/hosted-broker.acl:/mosquitto/config/acl:ro
+      - ./mosquitto/hosted-broker/hosted-broker.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/hosted-broker/hosted-broker.passwd:/mosquitto/config/passwd:ro
+      - ./mosquitto/hosted-broker/hosted-broker.acl:/mosquitto/config/acl:ro
 
       # Mount ALL letsencrypt so live/ symlinks resolve to archive/
       - ./letsencrypt:/etc/letsencrypt
@@ -53,6 +53,17 @@ services:
     networks:
       - cloudpico-network
 
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: cloudpico-web
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - cloudpico-network
+
   nginx:
     image: nginx:alpine
     container_name: cloudpico-nginx
@@ -61,12 +72,13 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./reverse-proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./letsencrypt:/etc/letsencrypt:ro
     networks:
       - cloudpico-network
     depends_on:
       - server
+      - web
 
 volumes:
   mosquitto_data:

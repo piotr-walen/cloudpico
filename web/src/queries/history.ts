@@ -21,7 +21,7 @@ const getHistoryReadings = async (
   limit: number = 20
 ): Promise<HistoryReadingsResponse> => {
   const url = new URL(
-    `${import.meta.env.VITE_API_URL}/api/v1/stations/${stationId}/history/readings`
+    `${import.meta.env.VITE_API_URL}/stations/${stationId}/history/readings`
   )
   url.searchParams.set('range', range)
   url.searchParams.set('page', page.toString())
@@ -42,7 +42,7 @@ const getHistoryChart = async (
   range: string
 ): Promise<z.infer<typeof ReadingSchema>[]> => {
   const url = new URL(
-    `${import.meta.env.VITE_API_URL}/api/v1/stations/${stationId}/history/chart`
+    `${import.meta.env.VITE_API_URL}/stations/${stationId}/history/chart`
   )
   url.searchParams.set('range', range)
 

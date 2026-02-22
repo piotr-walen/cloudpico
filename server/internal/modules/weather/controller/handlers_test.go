@@ -69,7 +69,7 @@ func Test_handleStations(t *testing.T) {
 			{ID: "st-2", Name: "Station Two"},
 		}
 		ctrl := NewWeatherController(&mockRepo{stations: stations}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations", nil)
 		rec := httptest.NewRecorder()
 
 		ctrl.handleStations(rec, req)
@@ -88,7 +88,7 @@ func Test_handleStations(t *testing.T) {
 
 	t.Run("returns 500 when repository fails", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{stationsErr: errors.New("db error")}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations", nil)
 		rec := httptest.NewRecorder()
 
 		ctrl.handleStations(rec, req)
@@ -109,7 +109,7 @@ func Test_handleLatest(t *testing.T) {
 			{StationID: "st-1", Time: time.Now(), Value: 12.5},
 		}
 		ctrl := NewWeatherController(&mockRepo{latest: readings}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/latest", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/latest", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -126,7 +126,7 @@ func Test_handleLatest(t *testing.T) {
 
 	t.Run("returns 400 when station id is missing", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations//latest", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations//latest", nil)
 		req.SetPathValue("id", "")
 		rec := httptest.NewRecorder()
 
@@ -143,7 +143,7 @@ func Test_handleLatest(t *testing.T) {
 
 	t.Run("returns 500 when repository fails", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{latestErr: errors.New("db error")}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/latest", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/latest", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -156,7 +156,7 @@ func Test_handleLatest(t *testing.T) {
 
 	t.Run("returns 400 when limit is invalid", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/latest?limit=abc", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/latest?limit=abc", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -174,7 +174,7 @@ func Test_handleReadings(t *testing.T) {
 			{StationID: "st-1", Time: time.Now(), Value: 10.0},
 		}
 		ctrl := NewWeatherController(&mockRepo{readings: readings}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z&limit=10", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/readings?from=2025-01-01T00:00:00Z&to=2025-01-02T00:00:00Z&limit=10", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -191,7 +191,7 @@ func Test_handleReadings(t *testing.T) {
 
 	t.Run("returns 400 when station id is missing", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations//readings", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations//readings", nil)
 		req.SetPathValue("id", "")
 		rec := httptest.NewRecorder()
 
@@ -207,7 +207,7 @@ func Test_handleReadings(t *testing.T) {
 
 	t.Run("returns 400 when from is invalid", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?from=not-a-date", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/readings?from=not-a-date", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -224,7 +224,7 @@ func Test_handleReadings(t *testing.T) {
 
 	t.Run("returns 400 when to is invalid", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?to=not-a-date", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/readings?to=not-a-date", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -237,7 +237,7 @@ func Test_handleReadings(t *testing.T) {
 
 	t.Run("returns 400 when from is after to", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?from=2025-01-02T00:00:00Z&to=2025-01-01T00:00:00Z", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/readings?from=2025-01-02T00:00:00Z&to=2025-01-01T00:00:00Z", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -254,7 +254,7 @@ func Test_handleReadings(t *testing.T) {
 
 	t.Run("returns 400 when limit is invalid", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings?limit=abc", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/readings?limit=abc", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
@@ -267,7 +267,7 @@ func Test_handleReadings(t *testing.T) {
 
 	t.Run("returns 500 when repository fails", func(t *testing.T) {
 		ctrl := NewWeatherController(&mockRepo{readingsErr: errors.New("db error")}).(*weatherControllerImpl)
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/stations/st-1/readings", nil)
+		req := httptest.NewRequest(http.MethodGet, "/stations/st-1/readings", nil)
 		req.SetPathValue("id", "st-1")
 		rec := httptest.NewRecorder()
 
