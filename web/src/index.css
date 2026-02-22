@@ -1,0 +1,73 @@
+.main { 
+  padding: 1rem; 
+  max-width: 60rem; 
+  margin: 0 auto; 
+}
+
+.dashboard-content { 
+  margin-top: 1rem; 
+}
+
+.stations-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(20rem, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.current-conditions.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  max-width: 20rem;
+}
+
+.current-conditions .card-title { 
+  margin: 0 0 0.5rem; 
+  font-size: 1.1rem; 
+}
+
+.current-conditions .reading-value { 
+  font-size: 1.5rem; 
+  font-weight: 600; 
+  margin: 0.25rem 0; 
+}
+
+.current-conditions .reading-time, 
+.current-conditions .station-name { 
+  margin: 0; 
+  color: #666; 
+  font-size: 0.9rem; 
+}
+
+.current-conditions .reading-extra { 
+  margin: 0.25rem 0; 
+  color: #555; 
+  font-size: 0.9rem; 
+  display: flex; 
+  gap: 1rem; 
+  flex-wrap: wrap; 
+}
+
+.current-conditions .no-data { 
+  margin: 0; 
+  color: #888; 
+}
+
+.page-nav-buttons {
+  margin-top: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.page-nav-buttons a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.page-nav-buttons .btn-icon {
+  width: 16px;
+  height: 16px;
+}

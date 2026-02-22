@@ -33,101 +33,115 @@ static btstack_packet_callback_registration_t hci_event_callback_registration;
 static uint8_t adv_data[31];
 static uint8_t adv_data_len = 0;
 
+/* int24 range for temperature: -8388608 .. 8388607 (scaled by 100) */
+#define TEMP_SCALED_MIN  (-8388608L)
+#define TEMP_SCALED_MAX   (8388607L)
+#define UINT24_MAX       (16777215UL)
+
 /**
  * Build manufacturer data payload
- * Format: magic (2) + device_id (2) + run_count16 (2) + seq24 (3) + temp (2) + pressure (2) + humidity (2) + battery (2) = 17 bytes
- * 
- * Note: dev_id is uint32_t but only the lower 16 bits are transmitted in the BLE payload.
- * Temperature: int16_t scaled by 100 (0.01°C resolution)
- * Pressure: uint16_t scaled by 10 (0.1 kPa resolution)
- * Humidity: uint16_t scaled by 100 (0.01% resolution)
- * Voltage: uint16_t scaled by 1000 (0.001V resolution)
+ * Format: magic (2) + device_id (1) + run_count16 (2) + seq24 (3) + temp (3) + pressure (3) + humidity (3) + battery (2) + soc (2) = 21 bytes
+ *
+ * device_id: lower 8 bits of uint32_t (0–255).
+ * Temperature: int24 LE scaled by 100 (0.01°C resolution).
+ * Pressure: uint24 LE scaled by 10 (0.1 kPa resolution).
+ * Humidity: uint24 LE scaled by 100 (0.01% resolution).
+ * Voltage: uint16 LE scaled by 1000 (0.001V resolution).
+ * SOC: uint16 LE scaled by 100 (0.01% resolution), 0xFFFF = invalid/unknown.
  */
-static void build_manufacturer_data(uint8_t *buffer, uint32_t dev_id, uint32_t run_count, uint32_t read_id, 
-                                     float temp, float pressure, float humidity, float battery) {
+static void build_manufacturer_data(uint8_t *buffer, uint32_t dev_id, uint32_t run_count, uint32_t read_id,
+                                    float temp, float pressure, float humidity, float battery, float soc) {
     uint8_t *p = buffer;
-    
+
     // Magic bytes
     *p++ = BLE_MAGIC_0;
     *p++ = BLE_MAGIC_1;
-    
-    // Device ID (little-endian uint16) - extract lower 16 bits from uint32_t
-    uint16_t dev_id_16 = (uint16_t)(dev_id & 0xFFFF);
-    *p++ = (uint8_t)(dev_id_16 & 0xFF);
-    *p++ = (uint8_t)((dev_id_16 >> 8) & 0xFF);
-    
-    // Run count (little-endian uint16) - extract lower 16 bits
+
+    // Device ID (1 byte) - extract lower 8 bits from uint32_t
+    *p++ = (uint8_t)(dev_id & 0xFF);
+
+    // Run count (little-endian uint16)
     uint16_t run_count_16 = (uint16_t)(run_count & 0xFFFF);
     *p++ = (uint8_t)(run_count_16 & 0xFF);
     *p++ = (uint8_t)((run_count_16 >> 8) & 0xFF);
-    
-    // Reading ID / Sequence (little-endian uint24) - extract lower 24 bits
+
+    // Reading ID / Sequence (little-endian uint24)
     uint32_t read_id_24 = read_id & 0xFFFFFF;
     *p++ = (uint8_t)(read_id_24 & 0xFF);
     *p++ = (uint8_t)((read_id_24 >> 8) & 0xFF);
     *p++ = (uint8_t)((read_id_24 >> 16) & 0xFF);
-    
-    // Temperature (little-endian int16, scaled by 100: 0.01°C resolution)
-    // Round and clamp to int16 range; NaN/Inf → 0
+
+    // Temperature (little-endian int24, scaled by 100: 0.01°C resolution)
     long temp_rounded = isfinite(temp) ? lrintf(temp * 100.0f) : 0L;
-    if (temp_rounded < INT16_MIN) temp_rounded = INT16_MIN;
-    if (temp_rounded > INT16_MAX) temp_rounded = INT16_MAX;
-    int16_t temp_scaled = (int16_t)temp_rounded;
-    *p++ = (uint8_t)(temp_scaled & 0xFF);
-    *p++ = (uint8_t)((temp_scaled >> 8) & 0xFF);
-    
-    // Pressure (little-endian uint16, scaled by 10: 0.1 kPa resolution)
-    // Round and clamp to [0, UINT16_MAX]; negative/NaN/Inf → 0
+    if (temp_rounded < TEMP_SCALED_MIN) temp_rounded = TEMP_SCALED_MIN;
+    if (temp_rounded > TEMP_SCALED_MAX) temp_rounded = TEMP_SCALED_MAX;
+    uint32_t temp_u = (uint32_t)(int32_t)temp_rounded;
+    *p++ = (uint8_t)(temp_u & 0xFF);
+    *p++ = (uint8_t)((temp_u >> 8) & 0xFF);
+    *p++ = (uint8_t)((temp_u >> 16) & 0xFF);
+
+    // Pressure (little-endian uint24, scaled by 10: 0.1 kPa resolution)
     long press_rounded = (isfinite(pressure) && pressure >= 0.0f) ? lrintf(pressure * 10.0f) : 0L;
     if (press_rounded < 0) press_rounded = 0;
-    if ((unsigned long)press_rounded > UINT16_MAX) press_rounded = UINT16_MAX;
-    uint16_t press_scaled = (uint16_t)press_rounded;
-    *p++ = (uint8_t)(press_scaled & 0xFF);
-    *p++ = (uint8_t)((press_scaled >> 8) & 0xFF);
-    
-    // Humidity (little-endian uint16, scaled by 100: 0.01% resolution)
-    // Round and clamp to [0, UINT16_MAX]; negative/NaN/Inf → 0
+    if ((unsigned long)press_rounded > UINT24_MAX) press_rounded = (long)UINT24_MAX;
+    uint32_t press_u = (uint32_t)press_rounded;
+    *p++ = (uint8_t)(press_u & 0xFF);
+    *p++ = (uint8_t)((press_u >> 8) & 0xFF);
+    *p++ = (uint8_t)((press_u >> 16) & 0xFF);
+
+    // Humidity (little-endian uint24, scaled by 100: 0.01% resolution)
     long hum_rounded = (isfinite(humidity) && humidity >= 0.0f) ? lrintf(humidity * 100.0f) : 0L;
     if (hum_rounded < 0) hum_rounded = 0;
-    if ((unsigned long)hum_rounded > UINT16_MAX) hum_rounded = UINT16_MAX;
-    uint16_t hum_scaled = (uint16_t)hum_rounded;
-    *p++ = (uint8_t)(hum_scaled & 0xFF);
-    *p++ = (uint8_t)((hum_scaled >> 8) & 0xFF);
-    
+    if ((unsigned long)hum_rounded > UINT24_MAX) hum_rounded = (long)UINT24_MAX;
+    uint32_t hum_u = (uint32_t)hum_rounded;
+    *p++ = (uint8_t)(hum_u & 0xFF);
+    *p++ = (uint8_t)((hum_u >> 8) & 0xFF);
+    *p++ = (uint8_t)((hum_u >> 16) & 0xFF);
+
     // Battery voltage (little-endian uint16, scaled by 1000: 0.001V resolution)
-    // Round and clamp to [0, UINT16_MAX]; negative/NaN/Inf → 0
     long battery_rounded = (isfinite(battery) && battery >= 0.0f) ? lrintf(battery * 1000.0f) : 0L;
     if (battery_rounded < 0) battery_rounded = 0;
     if ((unsigned long)battery_rounded > UINT16_MAX) battery_rounded = UINT16_MAX;
     uint16_t battery_scaled = (uint16_t)battery_rounded;
     *p++ = (uint8_t)(battery_scaled & 0xFF);
     *p++ = (uint8_t)((battery_scaled >> 8) & 0xFF);
+
+    // Battery SOC (little-endian uint16, scaled by 100: 0.01% resolution; 0xFFFF = invalid)
+    uint16_t soc_scaled = 0xFFFF;
+    if (isfinite(soc) && soc >= 0.0f && soc <= 100.0f) {
+        long s = lrintf(soc * 100.0f);
+        if (s < 0) s = 0;
+        if (s > 10000) s = 10000;
+        soc_scaled = (uint16_t)s;
+    }
+    *p++ = (uint8_t)(soc_scaled & 0xFF);
+    *p++ = (uint8_t)((soc_scaled >> 8) & 0xFF);
 }
 
 /**
  * Build advertisement data packet
  */
-static void build_adv_data(uint32_t dev_id, uint32_t run_count, uint32_t read_id, 
-                           float temp, float pressure, float humidity, float battery) {
+static void build_adv_data(uint32_t dev_id, uint32_t run_count, uint32_t read_id,
+                          float temp, float pressure, float humidity, float battery, float soc) {
     uint8_t *p = adv_data;
-    
+
     // Flags: general discoverable, BR/EDR not supported
     *p++ = 0x02;  // Length
     *p++ = BLUETOOTH_DATA_TYPE_FLAGS;
     *p++ = 0x06;  // Flags value
-    
-    // Manufacturer data: Company ID (2 bytes) + payload (17 bytes) = 19 bytes total
-    uint8_t mfg_data[17];
-    build_manufacturer_data(mfg_data, dev_id, run_count, read_id, temp, pressure, humidity, battery);
-    
-    *p++ = 20;  // Length: 1 (type) + 2 (Company ID) + 17 (payload)
+
+    // Manufacturer data: Company ID (2 bytes) + payload (21 bytes) = 23 bytes total
+    uint8_t mfg_data[21];
+    build_manufacturer_data(mfg_data, dev_id, run_count, read_id, temp, pressure, humidity, battery, soc);
+
+    *p++ = 24;  // Length: 1 (type) + 2 (Company ID) + 21 (payload)
     *p++ = BLUETOOTH_DATA_TYPE_MANUFACTURER_SPECIFIC_DATA;
     // Company ID (little-endian)
     *p++ = (uint8_t)(BLE_COMPANY_ID & 0xFF);
     *p++ = (uint8_t)((BLE_COMPANY_ID >> 8) & 0xFF);
     // Payload
-    memcpy(p, mfg_data, 17);
-    p += 17;
+    memcpy(p, mfg_data, 21);
+    p += 21;
     
     adv_data_len = p - adv_data;
     
@@ -163,7 +177,7 @@ static void packet_handler(uint8_t packet_type, uint16_t channel, uint8_t *packe
                                           ADV_TYPE, 0, null_addr, 0x07, 0x00);
             
             // Set initial advertisement data (will be updated with sensor data before enabling)
-            build_adv_data(device_id, 0, reading_id, 0.0f, 0.0f, 0.0f, 0.0f);
+            build_adv_data(device_id, 0, reading_id, 0.0f, 0.0f, 0.0f, 0.0f, -1.0f);
             gap_advertisements_set_data(adv_data_len, adv_data);
             // Don't enable advertising yet - wait for sensor data update
             // gap_advertisements_enable(1);
@@ -246,7 +260,7 @@ int ble_advertise_start(uint32_t run_count, sensor_data_t *data) {
     reading_id++;
     
     // Build new advertisement data
-    build_adv_data(device_id, run_count, reading_id, data->temperature, data->pressure, data->humidity, data->battery);
+    build_adv_data(device_id, run_count, reading_id, data->temperature, data->pressure, data->humidity, data->battery, data->battery_soc);
     
     // Update advertisement data
     gap_advertisements_set_data(adv_data_len, adv_data);
@@ -255,11 +269,11 @@ int ble_advertise_start(uint32_t run_count, sensor_data_t *data) {
     if (!advertising_enabled) {
         gap_advertisements_enable(1);
         advertising_enabled = true;
-        printf("BLE: Advertising enabled with sensor data (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%, V: %.3fV)\n",
-               reading_id, data->temperature, data->pressure, data->humidity, data->battery);
+        printf("BLE: Advertising enabled with sensor data (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%, V: %.3fV, SOC: %.0f%%)\n",
+               reading_id, data->temperature, data->pressure, data->humidity, data->battery, data->battery_soc >= 0.0f ? data->battery_soc : -1.0f);
     } else {
-        printf("BLE: Updated advertisement (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%, V: %.3fV)\n",
-               reading_id, data->temperature, data->pressure, data->humidity, data->battery);
+        printf("BLE: Updated advertisement (reading_id: %lu, T: %.2f°C, P: %.2f kPa, H: %.2f%%, V: %.3fV, SOC: %.0f%%)\n",
+               reading_id, data->temperature, data->pressure, data->humidity, data->battery, data->battery_soc >= 0.0f ? data->battery_soc : -1.0f);
     }
     
     return 0;

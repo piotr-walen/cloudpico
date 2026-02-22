@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS readings (
   humidity_pct    REAL,
   pressure_hpa    REAL,
   battery_v       REAL,
+  battery_soc_pct REAL,                           -- 0–100 from fuel gauge; NULL when not available
   run_count       INTEGER,
   reading_id      INTEGER,
 

@@ -4,51 +4,47 @@
 #include <stdint.h>
 
 /* ---------------------------------------------------------------------------
- * Board-specific configuration (adjust for hardware revisions)
+ * DFRobot Gravity I2C 3.7V Li Battery Fuel Gauge (MAX17043)
  * ---------------------------------------------------------------------------
  *
- * HARDWARE ASSUMPTIONS:
- * - ADC: RP2040 internal 12-bit ADC (0..ADC_MAX), single-ended on ADC0 (GPIO26).
- * - ADC reference: 3V3 rail (VBUS-derived or regulator). Accuracy depends on
- *   board supply; typical ~3.3V. For precision use external reference and
- *   set BATTERY_ADC_REF_V accordingly.
- * - Voltage divider: resistor divider from battery to ADC. Ratio must match
- *   BATTERY_DIVIDER_RATIO.
- *   Example: R1 (to battery) = 100k, R2 (to GND) = 100k => ratio = (R1+R2)/R2 = 2.0.
- *   Different boards: change R1/R2 and update BATTERY_DIVIDER_RATIO.
- * - Sampling: multiple samples with inter-sample delay to reduce noise;
- *   tune count/delay if needed for different ADC or filter requirements.
+ * HARDWARE:
+ * - Module: DFRobot Gravity I2C 3.7V Li Battery Fuel Gauge (SKU DFR0563).
+ * - IC: MAX17043 (1-cell LiPo fuel gauge).
+ * - I2C: 7-bit address 0x36. Uses I2C1 on Pico to avoid conflict with BME280 on I2C0.
+ *
+ * PINS (Raspberry Pi Pico 2 W):
+ * - GP18 = I2C1 SDA (connect to module SDA)
+ * - GP19 = I2C1 SCL (connect to module SCL)
+ *
+ * Voltage is read from the VCELL register; resolution 1.25 mV.
+ * Optional: SOC (state of charge) can be read for percentage.
  * --------------------------------------------------------------------------- */
 
-/** ADC reference voltage (V). Source: 3V3 rail on Pico. */
-#define BATTERY_ADC_REF_V          (3.3f)
+/** I2C address of the MAX17043 (7-bit). */
+#define BATTERY_FUEL_GAUGE_I2C_ADDR   (0x36u)
 
-/** 12-bit ADC maximum count (inclusive). */
-#define BATTERY_ADC_MAX_COUNT      (4095)
-
-/** Voltage divider ratio = V_battery / V_adc. E.g. 100k/100k => 2.0. */
-#define BATTERY_DIVIDER_RATIO      (2.0f)
-
-/** Number of ADC samples to average (noise reduction). */
-#define BATTERY_ADC_SAMPLES        (32)
-
-/** Delay between samples in microseconds (settling / anti-aliasing). */
-#define BATTERY_ADC_SAMPLE_DELAY_US (200)
+/** I2C clock frequency (Hz). */
+#define BATTERY_FUEL_GAUGE_I2C_FREQ   (100000u)
 
 /**
- * Initialize ADC for battery voltage reading.
- * Sets up GPIO26 as ADC0 input.
+ * Initialize I2C for the DFRobot fuel gauge (MAX17043).
+ * Uses I2C1 on GP18 (SDA) and GP19 (SCL).
+ * Call once before read_battery_voltage() or read_battery_soc().
  */
 void battery_voltage_init(void);
 
 /**
- * Read the battery voltage using ADC.
+ * Read battery voltage from the fuel gauge (VCELL).
  *
- * Uses the voltage divider and ADC parameters defined above.
- * Call battery_voltage_init() first before using this function.
- *
- * @return Battery voltage in volts
+ * @return Battery voltage in volts, or 0.0f on I2C error
  */
 float read_battery_voltage(void);
+
+/**
+ * Read state of charge from the fuel gauge (optional).
+ *
+ * @return SOC in percent (0.0f .. 100.0f), or -1.0f on I2C error
+ */
+float read_battery_soc(void);
 
 #endif // BATTERY_VOLTAGE_H

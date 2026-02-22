@@ -66,12 +66,16 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 		RunCount:    &sr.RunCount,
 		ReadingID:   &sr.ReadingID,
 	}
+	if sr.BatterySOC >= 0 {
+		soc := sr.BatterySOC
+		telemetry.BatterySOC = &soc
+	}
 
 	if err := h.mqttClient.PublishTelemetry(telemetry); err != nil {
 		slog.Warn("ble: failed to publish telemetry", "addr", m.Address, "reading_id", sr.ReadingID, "error", err)
 		return
 	}
-	slog.Info("ble: sensor reading published",
+	logAttrs := []any{
 		"addr", m.Address,
 		"device_id", sr.DeviceID,
 		"station_id", stationID,
@@ -80,5 +84,9 @@ func (h *BLESensorHandler) HandleMatch(m Match) {
 		"rssi", m.RSSI,
 		"T", sr.Temperature, "P", sr.Pressure, "H", sr.Humidity, "V", sr.Battery,
 		"data", utils.BytesToHex(m.Data),
-	)
+	}
+	if sr.BatterySOC >= 0 {
+		logAttrs = append(logAttrs, "SOC", sr.BatterySOC)
+	}
+	slog.Info("ble: sensor reading published", logAttrs...)
 }

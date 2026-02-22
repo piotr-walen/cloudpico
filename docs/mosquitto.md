@@ -47,7 +47,7 @@ mosquitto_passwd -b local-broker/passwd gateway "new-gateway-password"
 Set these for docker-compose (or in a `.env` file in the project root):
 
 ```bash
-export MQTT_SERVER_PASSWORD="your-server-password"    # server user on hosted broker
+export MQTT_API_PASSWORD="your-server-password"    # server user on hosted broker
 export MQTT_GATEWAY_PASSWORD="your-gateway-password"  # gateway user on local broker
 export MQTT_BRIDGE_PASSWORD="your-bridge-password"    # bridge user on hosted broker (used by local broker)
 export MQTT_HOSTED_BROKER_ADDRESS="host:1883"         # only for local broker (e.g. mosquitto-hosted:1883 in dev)
@@ -56,7 +56,7 @@ export MQTT_HOSTED_BROKER_ADDRESS="host:1883"         # only for local broker (e
 Or in `.env`:
 
 ```env
-MQTT_SERVER_PASSWORD=your-server-password
+MQTT_API_PASSWORD=your-server-password
 MQTT_GATEWAY_PASSWORD=your-gateway-password
 MQTT_BRIDGE_PASSWORD=your-bridge-password
 MQTT_HOSTED_BROKER_ADDRESS=hosted-broker.example.com:1883
