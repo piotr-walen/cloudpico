@@ -11,7 +11,6 @@ import (
 	db "cloudpico-server/internal/db"
 	httpapi "cloudpico-server/internal/httpapi"
 	weather "cloudpico-server/internal/modules/weather"
-	weatherviews "cloudpico-server/internal/modules/weather/views"
 	"cloudpico-server/internal/mqtt"
 	"cloudpico-tools/migrate"
 )
@@ -59,9 +58,6 @@ func Run(ctx context.Context, cfg config.Config) error {
 	// Set MQTT handler before Connect so OnConnectHandler can subscribe immediately.
 	// The broker may send queued messages right after CONNACK; we must be subscribed
 	// before that to receive them.
-	if err := weatherviews.LoadTemplates(); err != nil {
-		return err
-	}
 	mqttSubscriber := mqtt.NewSubscriber(cfg)
 	mux := httpapi.NewMux(dbConn, cfg.StaticDir, mqttSubscriber)
 	weather.RegisterFeature(mux, dbConn, mqttSubscriber)
