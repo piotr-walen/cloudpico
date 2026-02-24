@@ -107,7 +107,10 @@ func LoadFromEnv() (Config, error) {
 	}
 
 	mqttUsername := strings.TrimSpace(os.Getenv("MQTT_USERNAME"))
-	mqttPassword := strings.TrimSpace(os.Getenv("MQTT_PASSWORD"))
+	mqttPassword, err := readPasswordFile("MQTT_PASSWORD_FILE", "/run/secrets/gateway_password")
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		AppEnv:             appEnv,
@@ -121,6 +124,19 @@ func LoadFromEnv() (Config, error) {
 		SensorPollInterval: sensorPollInterval,
 		DeviceStationID:    deviceStationID,
 	}, nil
+}
+
+// readPasswordFile reads a password from the path in envVar, or defaultPath if env is unset (e.g. Docker secret at /run/secrets/gateway_password).
+func readPasswordFile(envVar, defaultPath string) (string, error) {
+	path := strings.TrimSpace(os.Getenv(envVar))
+	if path == "" {
+		path = defaultPath
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read MQTT password from %s: %w", path, err)
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 func parseLogLevel(s string) (slog.Level, error) {

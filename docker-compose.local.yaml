@@ -33,6 +33,8 @@ services:
       dockerfile: ./gateway/Dockerfile
     container_name: cloudpico-gateway-local
     restart: unless-stopped
+    secrets:
+      - gateway_password
     environment:
       - APP_ENV=dev
       - LOG_LEVEL=info
@@ -40,7 +42,6 @@ services:
       - MQTT_PORT=1883
       - MQTT_CLIENT_ID=cloudpico-gateway
       - MQTT_USERNAME=${MQTT_GATEWAY_USERNAME:-gateway}
-      - MQTT_PASSWORD=${MQTT_GATEWAY_PASSWORD:-your-gateway-password}
     volumes:
       # D-Bus system bus: required for BlueZ (gateway talks to host Bluetooth via D-Bus).
       # Mount at both paths: godbus looks for /var/run/dbus/system_bus_socket; host uses /run/dbus.
