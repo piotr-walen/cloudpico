@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"cloudpico-tools/migrate"
+	"cloudpico-tools/qr"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -32,7 +33,7 @@ func main() {
 	}()
 
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "usage: %s <command>\n  migrate  apply pending schema/seed migrations\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "usage: %s <command>\n  migrate  apply pending schema/seed migrations\n  qr       generate QR code SVG for web panel URL (https://nubecita.casa)\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -43,6 +44,17 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Println("migrations applied")
+	case "qr":
+		outPath := os.Getenv("QR_OUTPUT")
+		if outPath == "" {
+			outPath = filepath.Join("..", "web", "public", "qr.svg")
+		}
+		outPath = filepath.Clean(outPath)
+		if err := qr.Run(outPath); err != nil {
+			fmt.Fprintf(os.Stderr, "qr: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Printf("QR code SVG written to %s\n", outPath)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
 		os.Exit(1)
