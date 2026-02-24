@@ -8,9 +8,14 @@ services:
     ports:
       - "1883:1883"
       - "9001:9001"
+
+    entrypoint: ["/bin/sh", "/mosquitto/config/entrypoint.sh"]
+    secrets:
+      - gateway_password
+
     volumes:
       - ./local-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./local-broker/passwd:/mosquitto/config/passwd:ro
+      - ./local-broker/entrypoint.sh:/mosquitto/config/entrypoint.sh:ro
       - ./local-broker/acl:/mosquitto/config/acl:ro
       - mosquitto_data_local:/mosquitto/data
       - mosquitto_log_local:/mosquitto/log
@@ -48,6 +53,10 @@ services:
       - cloudpico-local-network
     depends_on:
       - mosquitto-local
+
+secrets:
+  gateway_password:
+    file: ./secrets/mqtt_gateway_password
 
 volumes:
   mosquitto_data_local:

@@ -7,40 +7,40 @@ The project uses two Mosquitto broker roles:
 - **Local broker** (`local-broker/`) – Runs near the gateway. The gateway publishes to this broker; it bridges selected topics to the remote broker.
 - **Remote broker** (`remote-broker/`) – Central/hosted broker. Local brokers bridge to it; the API subscribes here.
 
-Configuration files (`mosquitto.conf`, `mosquitto.acl`) are already in `local-broker/` and `remote-broker/`. You only need to create or update the password files.
+Configuration files (`mosquitto.conf`, `acl`) are in `local-broker/` and `remote-broker/`. Passwords are supplied via **Docker secrets**; an entrypoint script generates the Mosquitto `password_file` at container start (Mosquitto does not read Docker secrets directly).
 
-## Setting Up Authentication
+## Setting Up Authentication (Docker Secrets)
 
-### Remote broker (`remote-broker/passwd`)
+Create plain-text password files under `secrets/` (the directory is gitignored). The entrypoint reads these and builds the Mosquitto passwd file at startup.
 
-Users: `bridge` (used by local broker bridge), `api` (used by the API to subscribe to telemetry).
+### Remote broker (hosted)
+
+Users: `bridge` (local broker bridge), `api` (API subscriber). Create:
+
+- `secrets/mqtt_api_password` – password for user `api`
+- `secrets/mqtt_bridge_password` – password for user `bridge`
 
 ```bash
-# Create password file with bridge user (required for local→remote bridge)
-mosquitto_passwd -c -b remote-broker/passwd bridge "your-bridge-password"
-
-# Add api user (for API subscribing to telemetry)
-mosquitto_passwd -b remote-broker/passwd api "your-api-password"
+mkdir -p secrets
+echo -n "your-api-password"    > secrets/mqtt_api_password
+echo -n "your-bridge-password" > secrets/mqtt_bridge_password
+chmod 600 secrets/mqtt_api_password secrets/mqtt_bridge_password
 ```
 
-### Local broker (`local-broker/passwd`)
+### Local broker
 
-User: `gateway` (used by gateway devices to publish telemetry).
+User: `gateway`. Create:
+
+- `secrets/mqtt_gateway_password` – password for user `gateway`
 
 ```bash
-mosquitto_passwd -c -b local-broker/passwd gateway "your-gateway-password"
+echo -n "your-gateway-password" > secrets/mqtt_gateway_password
+chmod 600 secrets/mqtt_gateway_password
 ```
 
 ### Updating passwords
 
-```bash
-# Remote broker
-mosquitto_passwd -b remote-broker/passwd bridge "new-bridge-password"
-mosquitto_passwd -b remote-broker/passwd api "new-api-password"
-
-# Local broker
-mosquitto_passwd -b local-broker/passwd gateway "new-gateway-password"
-```
+Change the contents of the files in `secrets/` and restart the broker container(s). The passwd file is regenerated on every start.
 
 ## Environment Variables
 
@@ -54,5 +54,4 @@ MQTT_PASSWORD=your-api-password
 MQTT_TOPIC=stations/+/telemetry
 ```
 
-For dev, the remote broker is exposed on host port 1885 (see `docker-compose.dev.yaml`). The password must match the one used in `remote-broker/passwd` for user `api` and `bridge`. After changing the passwd file.
-Local broker is exposed on host port 1884 (see `docker-compose.dev.yaml`). The password must match the one used in `local-broker/passwd` for user `gateway`. After changing the passwd file. Restart the broker container so it reloads.
+For dev, the remote broker is on host port 1885 and the local broker on 1884 (see `docker-compose.dev.yaml`). Use the same secrets as above; ensure `secrets/mqtt_api_password`, `secrets/mqtt_bridge_password`, and `secrets/mqtt_gateway_password` exist. After changing any secret file, restart the broker container(s).

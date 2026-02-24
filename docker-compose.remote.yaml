@@ -11,9 +11,14 @@ services:
       - "8883:8883"
       - "9001:9001"
 
+    entrypoint: ["/bin/sh", "/mosquitto/config/entrypoint.sh"]
+    secrets:
+      - api_password
+      - bridge_password
+
     volumes:
       - ./remote-broker/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./remote-broker/passwd:/mosquitto/config/passwd:ro
+      - ./remote-broker/entrypoint.sh:/mosquitto/config/entrypoint.sh:ro
       - ./remote-broker/acl:/mosquitto/config/acl:ro
 
       # Mount ALL letsencrypt so live/ symlinks resolve to archive/
@@ -79,6 +84,12 @@ services:
     depends_on:
       - api
       - web
+
+secrets:
+  api_password:
+    file: ./secrets/mqtt_api_password
+  bridge_password:
+    file: ./secrets/mqtt_bridge_password
 
 volumes:
   mosquitto_data:

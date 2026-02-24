@@ -33,6 +33,26 @@ React + TypeScript + Vite frontend for viewing current conditions and history; c
 
 Docker Compose files are at the repo root: `docker-compose.dev.yaml` (local + remote brokers for dev), `docker-compose.remote.yaml`, `docker-compose.local.yaml`.
 
+## Secrets
+
+Mosquitto brokers get passwords from **Docker secrets** (file-based). The container entrypoint generates the Mosquitto `password_file` at startup from these secrets.
+
+| Secret file | Compose | Purpose |
+|-------------|--------|---------|
+| `secrets/mqtt_api_password` | remote, dev | Password for user `api` (API subscribes to remote broker) |
+| `secrets/mqtt_bridge_password` | remote, dev | Password for user `bridge` (local broker bridge to remote) |
+| `secrets/mqtt_gateway_password` | local, dev | Password for user `gateway` (gateway publishes to local broker) |
+
+**Setup:** copy the example files, then replace with real passwords. The `secrets/` directory is gitignored.
+
+```bash
+cp -r secrets.example secrets
+# Edit secrets/mqtt_api_password, secrets/mqtt_bridge_password, secrets/mqtt_gateway_password
+chmod 600 secrets/mqtt_*
+```
+
+Use `echo -n 'your-password' > secrets/mqtt_*` to avoid trailing newlines in the password. See `secrets.example/README.md` and `docs/mosquitto.md` for details.
+
 ## Data flow
 
 1. Pico 2 wakes on interval, samples sensors, packs **station_id + sequence + battery + sensor values** into a compact payload, and broadcasts in BLE advertisements.
