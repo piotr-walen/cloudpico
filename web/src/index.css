@@ -35,6 +35,101 @@
   color: #e2e8f0;
 }
 
+.navbar-qr {
+  display: block;
+  line-height: 0;
+  opacity: 0.9;
+  background: none !important;
+  border: none !important;
+  padding: 0;
+  cursor: pointer;
+  outline: none !important;
+}
+
+.navbar-qr:hover,
+.navbar-qr:focus,
+.navbar-qr:focus-visible,
+.navbar-qr:active {
+  background: none !important;
+  border: none !important;
+  outline: none !important;
+}
+
+.navbar-qr:hover {
+  opacity: 1;
+}
+
+/* QR modal overlay */
+.qr-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1rem;
+}
+
+.qr-modal-content {
+  position: relative;
+  background: var(--pico-background-color, #fff);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 20rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.qr-modal-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #666;
+}
+
+.qr-modal-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: #111;
+}
+
+.qr-modal-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.25rem;
+}
+
+.qr-modal-hint {
+  margin: 0 0 1rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.qr-modal-qr-link {
+  display: inline-block;
+  line-height: 0;
+}
+
+.qr-modal-qr-link img {
+  display: block;
+}
+
+.qr-modal-url {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  color: #555;
+  word-break: break-all;
+}
+
 .main { 
   padding: 1rem; 
   max-width: 60rem; 
@@ -107,4 +202,36 @@
 .page-nav-buttons .btn-icon {
   width: 16px;
   height: 16px;
+}
+
+.qr-share.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 1rem;
+  max-width: 20rem;
+  margin-top: 1rem;
+}
+
+.qr-share-hint {
+  margin: 0 0 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.qr-share-link {
+  display: inline-block;
+  line-height: 0;
+}
+
+.qr-share-img {
+  width: 148px;
+  height: 148px;
+  display: block;
+}
+
+.qr-share-url {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: #555;
+  word-break: break-all;
 }
