@@ -37,6 +37,8 @@ services:
     restart: unless-stopped
     expose:
       - "8080"
+    secrets:
+      - api_password
     environment:
       - APP_ENV=prod
       - LOG_LEVEL=info
@@ -51,7 +53,6 @@ services:
       - MQTT_PORT=1883
       - MQTT_CLIENT_ID=cloudpico-api
       - MQTT_USERNAME=api
-      - MQTT_PASSWORD=${MQTT_API_PASSWORD:-changeme}
       - MQTT_TOPIC=stations/+/telemetry
     volumes:
       - api_data:/app/data

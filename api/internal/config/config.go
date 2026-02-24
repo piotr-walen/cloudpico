@@ -145,7 +145,10 @@ func LoadFromEnv() (Config, error) {
 	}
 
 	mqttUsername := strings.TrimSpace(os.Getenv("MQTT_USERNAME"))
-	mqttPassword := strings.TrimSpace(os.Getenv("MQTT_PASSWORD"))
+	mqttPassword, err := readPasswordFile("MQTT_PASSWORD_FILE", "/run/secrets/api_password")
+	if err != nil {
+		return Config{}, err
+	}
 
 	corsOriginsStr := strings.TrimSpace(os.Getenv("CORS_ALLOWED_ORIGINS"))
 	if corsOriginsStr == "" {
@@ -172,6 +175,19 @@ func LoadFromEnv() (Config, error) {
 		MQTTTopic:             mqttTopic,
 		CORSAllowedOrigins:    corsAllowedOrigins,
 	}, nil
+}
+
+// readPasswordFile reads a password from the path in envVar, or defaultPath if env is unset (e.g. Docker secret at /run/secrets/api_password).
+func readPasswordFile(envVar, defaultPath string) (string, error) {
+	path := strings.TrimSpace(os.Getenv(envVar))
+	if path == "" {
+		path = defaultPath
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("read MQTT password from %s: %w", path, err)
+	}
+	return strings.TrimSpace(string(b)), nil
 }
 
 // parseCommaSeparated splits s by comma and returns non-empty trimmed elements.
