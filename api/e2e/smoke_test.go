@@ -36,6 +36,7 @@ func TestSmoke_Healthz(t *testing.T) {
 
 	bin := buildBinary(t, repoRoot)
 	addr := pickFreeAddr(t)
+	mqttPasswordFile := writeTempMQTTPassword(t)
 
 	cmd := exec.Command(bin)
 	cmd.Env = append(os.Environ(),
@@ -47,9 +48,10 @@ func TestSmoke_Healthz(t *testing.T) {
 		"SQLITE_DRIVER=sqlite3",
 		"SQLITE_PATH="+sqlitePath,
 
-		// MQTT envs (point at testcontainer)
+		// MQTT envs (point at testcontainer; anonymous broker, empty password file)
 		"MQTT_BROKER="+mqttHost,
 		"MQTT_PORT="+strconv.Itoa(mqttPort),
+		"MQTT_PASSWORD_FILE="+mqttPasswordFile,
 	)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -114,6 +116,17 @@ func startMosquitto(t *testing.T, ctx context.Context) (host string, port int) {
 	}
 	port = mapped.Int()
 	return host, port
+}
+
+// writeTempMQTTPassword creates a temp file with a password (empty for anonymous broker) and returns its path.
+func writeTempMQTTPassword(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "mqtt_password")
+	if err := os.WriteFile(p, []byte(""), 0600); err != nil {
+		t.Fatalf("write temp mqtt password file: %v", err)
+	}
+	return p
 }
 
 func startSQLite(t *testing.T) string {
