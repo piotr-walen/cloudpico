@@ -53,7 +53,7 @@ const Layout = () => {
                         <h2 className="qr-modal-title">Share web panel</h2>
                         <p className="qr-modal-hint">Scan to open on another device</p>
                         <a href="https://nubecita.casa" target="_blank" rel="noopener noreferrer" className="qr-modal-qr-link">
-                            <img src="/qr.svg" alt="QR code for https://nubecita.casa" width={200} height={200} />
+                            <img src="/qr.svg" alt="QR code for https://nubecita.casa" />
                         </a>
                         <p className="qr-modal-url">https://nubecita.casa</p>
                     </div>

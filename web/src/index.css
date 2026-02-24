@@ -73,10 +73,11 @@
 
 .qr-modal-content {
   position: relative;
+  width: 100%;
+  max-width: none;
   background: var(--pico-background-color, #fff);
   border-radius: 12px;
   padding: 1.5rem;
-  max-width: 20rem;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
 }
 
@@ -115,12 +116,15 @@
 }
 
 .qr-modal-qr-link {
-  display: inline-block;
+  display: block;
   line-height: 0;
+  width: 100%;
 }
 
 .qr-modal-qr-link img {
   display: block;
+  width: 100%;
+  height: auto;
 }
 
 .qr-modal-url {
@@ -128,6 +132,23 @@
   font-size: 0.85rem;
   color: #555;
   word-break: break-all;
+}
+
+/* Horizontal / PC: modal and QR fit to viewport height */
+@media (min-width: 768px) {
+  .qr-modal-content {
+    width: auto;
+    max-width: min(90vw, 28rem);
+    max-height: 90vh;
+    overflow: auto;
+  }
+
+  .qr-modal-qr-link img {
+    width: auto;
+    max-width: 100%;
+    max-height: min(60vh, calc(90vh - 8rem));
+    height: auto;
+  }
 }
 
 .main { 
