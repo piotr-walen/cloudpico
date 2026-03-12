@@ -88,8 +88,7 @@ func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.T
 	}
 	fromStr := from.UTC().Format(time.RFC3339Nano)
 	toStr := to.UTC().Format(time.RFC3339Nano)
-	// Params: fromStr, maxPoints, toStr, fromStr, maxPoints, stationID, fromStr, toStr
-	rows, err := r.db.Query(getReadingsSQL, fromStr, limit, toStr, fromStr, limit, stationID, fromStr, toStr)
+	rows, err := r.db.Query(getReadingsSQL, stationID, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}
@@ -98,32 +97,82 @@ func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.T
 			slog.Error("close readings rows", "error", err)
 		}
 	}()
-	return scanReadingsBucketed(rows, from, to, limit)
+	readings, err := scanReadings(rows)
+	if err != nil {
+		return nil, err
+	}
+	return bucketReadings(readings, from, to, limit), nil
 }
 
-func scanReadingsBucketed(rows *sql.Rows, from, to time.Time, maxPoints int) ([]types.Reading, error) {
+// bucketReadings splits readings into up to maxPoints buckets over [from, to] and returns one Reading per bucket (avg values, time = avg of reading times in bucket).
+func bucketReadings(readings []types.Reading, from, to time.Time, maxPoints int) []types.Reading {
+	if len(readings) == 0 {
+		return nil
+	}
 	window := to.Sub(from)
-	var out []types.Reading
-	for rows.Next() {
-		var rec types.Reading
-		var bucket int
-		var batterySOCPct sql.NullFloat64
-		if err := rows.Scan(&rec.StationID, &bucket, &rec.Value, &rec.HumidityPct, &rec.PressureHpa, &rec.BatteryV, &batterySOCPct); err != nil {
-			return nil, err
+	if window <= 0 || maxPoints <= 0 {
+		return readings
+	}
+	bucketDuration := window / time.Duration(maxPoints)
+	type acc struct {
+		n           int
+		sumT        time.Duration
+		sumVal      float64
+		sumHum      float64
+		sumPress    float64
+		sumBatt     float64
+		sumBattSOC  float64
+		nBattSOC    int
+		stationID   string
+	}
+	buckets := make(map[int]*acc)
+	for _, r := range readings {
+		elapsed := r.Time.Sub(from)
+		idx := int(elapsed / bucketDuration)
+		if idx < 0 {
+			idx = 0
 		}
-		if batterySOCPct.Valid {
-			rec.BatterySOCPct = batterySOCPct.Float64
-		} else {
-			rec.BatterySOCPct = -1
+		if idx >= maxPoints {
+			idx = maxPoints - 1
 		}
-		if maxPoints > 0 {
-			rec.Time = from.Add(time.Duration(bucket) * window / time.Duration(maxPoints))
-		} else {
-			rec.Time = from
+		if buckets[idx] == nil {
+			buckets[idx] = &acc{stationID: r.StationID}
+		}
+		b := buckets[idx]
+		b.n++
+		b.sumT += r.Time.Sub(from)
+		b.sumVal += r.Value
+		b.sumHum += r.HumidityPct
+		b.sumPress += r.PressureHpa
+		b.sumBatt += r.BatteryV
+		if r.BatterySOCPct >= 0 {
+			b.sumBattSOC += r.BatterySOCPct
+			b.nBattSOC++
+		}
+	}
+	out := make([]types.Reading, 0, len(buckets))
+	for idx := 0; idx < maxPoints; idx++ {
+		b := buckets[idx]
+		if b == nil || b.n == 0 {
+			continue
+		}
+		n := float64(b.n)
+		avgTime := from.Add(b.sumT / time.Duration(b.n))
+		rec := types.Reading{
+			StationID:    b.stationID,
+			Time:         avgTime,
+			Value:        b.sumVal / n,
+			HumidityPct:  b.sumHum / n,
+			PressureHpa:  b.sumPress / n,
+			BatteryV:     b.sumBatt / n,
+			BatterySOCPct: -1,
+		}
+		if b.nBattSOC > 0 {
+			rec.BatterySOCPct = b.sumBattSOC / float64(b.nBattSOC)
 		}
 		out = append(out, rec)
 	}
-	return out, rows.Err()
+	return out
 }
 
 func (r *repositoryImpl) GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error) {
