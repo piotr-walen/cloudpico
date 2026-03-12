@@ -205,7 +205,7 @@ func (c *weatherControllerImpl) handleReadings(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	readings, err := c.repository.GetReadings(id, from, to, limit, 0)
+	readings, err := c.repository.GetReadings(id, from, to, limit)
 	if err != nil {
 		utils.WriteError(w, http.StatusInternalServerError, err.Error())
 		return
@@ -259,45 +259,32 @@ func (c *weatherControllerImpl) handleHistoryReadings(w http.ResponseWriter, r *
 		return
 	}
 
-	from, to, page, limit, err := parseHistoryQuery(r)
+	from, to, _, limit, err := parseHistoryQuery(r)
 	if err != nil {
 		utils.WriteError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	offset := (page - 1) * limit
-	readings, err := c.repository.GetReadings(id, from, to, limit, offset)
+	readings, err := c.repository.GetReadings(id, from, to, limit)
 	if err != nil {
 		slog.Error("history readings: get readings failed", "station_id", id, "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to load readings")
 		return
 	}
 
-	// Ensure readings is never nil (empty slice instead)
 	if readings == nil {
 		readings = []types.Reading{}
 	}
 
-	count, err := c.repository.GetReadingsCount(id, from, to)
-	if err != nil {
-		slog.Error("history readings: get count failed", "station_id", id, "error", err)
-		utils.WriteError(w, http.StatusInternalServerError, "failed to load count")
-		return
-	}
-
-	totalPages := 1
-	if count > 0 {
-		totalPages = (count + limit - 1) / limit
-	}
-
+	total := len(readings)
 	response := map[string]interface{}{
 		"readings":   readings,
-		"page":       page,
+		"page":       1,
 		"limit":      limit,
-		"total":      count,
-		"totalPages": totalPages,
-		"hasPrev":    page > 1,
-		"hasNext":    page < totalPages,
+		"total":      total,
+		"totalPages": 1,
+		"hasPrev":    false,
+		"hasNext":    false,
 	}
 
 	utils.WriteJSON(w, http.StatusOK, response)
@@ -317,7 +304,7 @@ func (c *weatherControllerImpl) handleHistoryChart(w http.ResponseWriter, r *htt
 	}
 
 	// Fetch all readings for the chart (up to 10000 to avoid performance issues)
-	chartReadings, err := c.repository.GetReadings(id, from, to, 10000, 0)
+	chartReadings, err := c.repository.GetReadings(id, from, to, 10000)
 	if err != nil {
 		slog.Error("history chart: get chart readings failed", "station_id", id, "error", err)
 		utils.WriteError(w, http.StatusInternalServerError, "failed to load chart data")

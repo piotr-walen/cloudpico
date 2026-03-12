@@ -4,18 +4,6 @@
  * This file provides the I2C interface and BME280 initialization/read logic.
  * Only bme280_sensor_init() and bme280_sensor_read() are part of the public API.
  *
- * PIN CONNECTIONS (Raspberry Pi Pico):
- * ====================================
- * Pico Pin  | GPIO  | Function | BME280 Pin
- * ----------|-------|----------|------------
- * Pin 21    | GP16  | SDA      | SDA
- * Pin 22    | GP17  | SCL      | SCL
- * Pin 36    | 3V3   | Power    | VCC/VIN
- * Pin 38    | GND   | Ground   | GND
- *
- * BME280 I2C Address:
- * - 0x76 if SDO pin is connected to GND
- * - 0x77 if SDO pin is connected to VCC
  */
 
 #include <stdio.h>

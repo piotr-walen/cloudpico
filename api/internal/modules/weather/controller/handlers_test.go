@@ -24,7 +24,6 @@ type mockRepo struct {
 	lastReadingsFrom      time.Time
 	lastReadingsTo        time.Time
 	lastReadingsLimit     int
-	lastReadingsOffset    int
 	insertErr             error
 }
 
@@ -36,14 +35,12 @@ func (m *mockRepo) GetLatestReadings(stationID string, limit int) ([]types.Readi
 	return m.latest, m.latestErr
 }
 
-func (m *mockRepo) GetReadings(stationID string, from, to time.Time, limit int, offset int) ([]types.Reading, error) {
+func (m *mockRepo) GetReadings(stationID string, from, to time.Time, limit int) ([]types.Reading, error) {
 	m.lastReadingsStationID = stationID
 	m.lastReadingsFrom = from
 	m.lastReadingsTo = to
-	// Record table call (paginated); chart call uses limit=10000 and would overwrite otherwise
 	if limit != 10000 {
 		m.lastReadingsLimit = limit
-		m.lastReadingsOffset = offset
 	}
 	return m.readings, m.readingsErr
 }

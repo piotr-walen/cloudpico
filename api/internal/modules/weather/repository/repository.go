@@ -32,7 +32,7 @@ var getStationIDByNameSQL string
 type WeatherRepository interface {
 	GetStations() ([]types.Station, error)
 	GetLatestReadings(stationID string, limit int) ([]types.Reading, error)
-	GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error)
+	GetReadings(stationID string, from time.Time, to time.Time, limit int) ([]types.Reading, error)
 	GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error)
 	InsertReading(stationID string, ts time.Time, temperature *float64, humidity *float64, pressure *float64, battery *float64, batterySOC *float64, runCount *uint32, readingID *uint32) error
 }
@@ -79,10 +79,17 @@ func (r *repositoryImpl) GetLatestReadings(stationID string, limit int) ([]types
 	return scanReadings(rows)
 }
 
-func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.Time, limit int, offset int) ([]types.Reading, error) {
+func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.Time, limit int) ([]types.Reading, error) {
+	if !from.Before(to) {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 1
+	}
 	fromStr := from.UTC().Format(time.RFC3339Nano)
 	toStr := to.UTC().Format(time.RFC3339Nano)
-	rows, err := r.db.Query(getReadingsSQL, stationID, fromStr, toStr, limit, offset)
+	// Params: fromStr, maxPoints, toStr, fromStr, maxPoints, stationID, fromStr, toStr
+	rows, err := r.db.Query(getReadingsSQL, fromStr, limit, toStr, fromStr, limit, stationID, fromStr, toStr)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +98,32 @@ func (r *repositoryImpl) GetReadings(stationID string, from time.Time, to time.T
 			slog.Error("close readings rows", "error", err)
 		}
 	}()
-	return scanReadings(rows)
+	return scanReadingsBucketed(rows, from, to, limit)
+}
+
+func scanReadingsBucketed(rows *sql.Rows, from, to time.Time, maxPoints int) ([]types.Reading, error) {
+	window := to.Sub(from)
+	var out []types.Reading
+	for rows.Next() {
+		var rec types.Reading
+		var bucket int
+		var batterySOCPct sql.NullFloat64
+		if err := rows.Scan(&rec.StationID, &bucket, &rec.Value, &rec.HumidityPct, &rec.PressureHpa, &rec.BatteryV, &batterySOCPct); err != nil {
+			return nil, err
+		}
+		if batterySOCPct.Valid {
+			rec.BatterySOCPct = batterySOCPct.Float64
+		} else {
+			rec.BatterySOCPct = -1
+		}
+		if maxPoints > 0 {
+			rec.Time = from.Add(time.Duration(bucket) * window / time.Duration(maxPoints))
+		} else {
+			rec.Time = from
+		}
+		out = append(out, rec)
+	}
+	return out, rows.Err()
 }
 
 func (r *repositoryImpl) GetReadingsCount(stationID string, from time.Time, to time.Time) (int, error) {

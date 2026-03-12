@@ -111,6 +111,7 @@ int main()
 #ifdef CSENSOR_VERBOSE
     stdio_init_all();
 #endif
+    sleep_ms(2000);
     better_print("Device ID = 0x%08X\n", DEVICE_ID);
 
     bool flash_counter_success = flash_counter_increment_and_store(&run_count);

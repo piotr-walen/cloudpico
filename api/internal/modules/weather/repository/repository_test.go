@@ -243,7 +243,7 @@ func TestGetReadings_EmptyRange(t *testing.T) {
 
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10, 0)
+	readings, err := repo.GetReadings("1", from, to, 10)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
@@ -278,16 +278,17 @@ func TestGetReadings_WithData(t *testing.T) {
 
 	from := time.Date(2025, 2, 1, 11, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 1, 13, 59, 59, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10, 0)
+	readings, err := repo.GetReadings("1", from, to, 10)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
-	// 11:00, 12:00, 13:00 within range; order DESC so 13, 12, 11
+	// Bucketed: 3 readings in range → up to 3 buckets with data (order ASC by bucket)
 	if len(readings) != 3 {
 		t.Fatalf("GetReadings: got %d readings, want 3", len(readings))
 	}
-	if readings[0].Value != 11.0 || readings[1].Value != 10.0 || readings[2].Value != 9.0 {
-		t.Errorf("GetReadings: got values %v, want [11, 10, 9]", []float64{readings[0].Value, readings[1].Value, readings[2].Value})
+	// Values are bucket averages; 9, 10, 11 in chronological order
+	if readings[0].Value != 9.0 || readings[1].Value != 10.0 || readings[2].Value != 11.0 {
+		t.Errorf("GetReadings: got values %v, want [9, 10, 11]", []float64{readings[0].Value, readings[1].Value, readings[2].Value})
 	}
 }
 
@@ -315,35 +316,35 @@ func TestGetReadings_HumidityAndPressure(t *testing.T) {
 	}
 	repo := NewRepository(db)
 
-	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
-	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10, 0)
+	// Use 4-hour window and 5 buckets so each reading (10:00–13:00) lands in its own bucket
+	from := time.Date(2025, 2, 1, 10, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 2, 1, 14, 0, 0, 0, time.UTC)
+	readings, err := repo.GetReadings("1", from, to, 5)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
-	// Order DESC: 13:00, 12:00, 11:00, 10:00
+	// Bucketed: 4 readings → 4 buckets, order ASC (10:00, 11:00, 12:00, 13:00)
 	if len(readings) != 4 {
 		t.Fatalf("GetReadings: got %d readings, want 4", len(readings))
 	}
-	// 13:00 — both NULL → COALESCE to 0
-	if readings[0].HumidityPct != 0 || readings[0].PressureHpa != 0 {
-		t.Errorf("reading 13:00 (NULL/NULL): got HumidityPct=%v PressureHpa=%v, want 0, 0", readings[0].HumidityPct, readings[0].PressureHpa)
-	}
-	// 12:00 — humidity set, pressure NULL
-	if readings[1].HumidityPct != 70.5 || readings[1].PressureHpa != 0 {
-		t.Errorf("reading 12:00 (70.5/NULL): got HumidityPct=%v PressureHpa=%v, want 70.5, 0", readings[1].HumidityPct, readings[1].PressureHpa)
+	// 10:00 — both set
+	if readings[0].HumidityPct != 65.0 || readings[0].PressureHpa != 1013.25 {
+		t.Errorf("reading 10:00 (65/1013.25): got HumidityPct=%v PressureHpa=%v", readings[0].HumidityPct, readings[0].PressureHpa)
 	}
 	// 11:00 — humidity NULL, pressure set
-	if readings[2].HumidityPct != 0 || readings[2].PressureHpa != 1012.0 {
-		t.Errorf("reading 11:00 (NULL/1012): got HumidityPct=%v PressureHpa=%v, want 0, 1012", readings[2].HumidityPct, readings[2].PressureHpa)
+	if readings[1].HumidityPct != 0 || readings[1].PressureHpa != 1012.0 {
+		t.Errorf("reading 11:00 (NULL/1012): got HumidityPct=%v PressureHpa=%v", readings[1].HumidityPct, readings[1].PressureHpa)
 	}
-	// 10:00 — both set
-	if readings[3].HumidityPct != 65.0 || readings[3].PressureHpa != 1013.25 {
-		t.Errorf("reading 10:00 (65/1013.25): got HumidityPct=%v PressureHpa=%v, want 65, 1013.25", readings[3].HumidityPct, readings[3].PressureHpa)
+	// 12:00 — humidity set, pressure NULL
+	if readings[2].HumidityPct != 70.5 || readings[2].PressureHpa != 0 {
+		t.Errorf("reading 12:00 (70.5/NULL): got HumidityPct=%v PressureHpa=%v", readings[2].HumidityPct, readings[2].PressureHpa)
 	}
-	// Temperature still correct
-	if readings[0].Value != 11.0 || readings[3].Value != 8.0 {
-		t.Errorf("temperature: got [0]=%v [3]=%v, want 11, 8", readings[0].Value, readings[3].Value)
+	// 13:00 — both NULL → COALESCE to 0
+	if readings[3].HumidityPct != 0 || readings[3].PressureHpa != 0 {
+		t.Errorf("reading 13:00 (NULL/NULL): got HumidityPct=%v PressureHpa=%v", readings[3].HumidityPct, readings[3].PressureHpa)
+	}
+	if readings[0].Value != 8.0 || readings[3].Value != 11.0 {
+		t.Errorf("temperature: got [0]=%v [3]=%v, want 8, 11", readings[0].Value, readings[3].Value)
 	}
 }
 
@@ -371,54 +372,17 @@ func TestGetReadings_RespectsLimit(t *testing.T) {
 
 	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 2, 0)
+	readings, err := repo.GetReadings("1", from, to, 2)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
+	// maxPoints=2: time range split into 2 buckets, so at most 2 aggregated readings
 	if len(readings) != 2 {
 		t.Fatalf("GetReadings(limit=2): got %d readings, want 2", len(readings))
 	}
-	// Newest first: 12, 11
-	if readings[0].Value != 12.0 || readings[1].Value != 11.0 {
-		t.Errorf("GetReadings limit: got values %v", []float64{readings[0].Value, readings[1].Value})
-	}
-}
-
-func TestGetReadings_RespectsOffset(t *testing.T) {
-	db := setupTestDB(t)
-	defer func() {
-		if closeErr := db.Close(); closeErr != nil {
-			t.Fatalf("close db: %v", closeErr)
-		}
-	}()
-	_, err := db.Exec(`INSERT INTO stations (id, name) VALUES (1, 'S1')`)
-	if err != nil {
-		t.Fatalf("insert station: %v", err)
-	}
-	_, err = db.Exec(`
-		INSERT INTO readings (station_id, ts, temperature_c) VALUES
-		(1, '2025-02-01T10:00:00Z', 10.0),
-		(1, '2025-02-01T11:00:00Z', 11.0),
-		(1, '2025-02-01T12:00:00Z', 12.0),
-		(1, '2025-02-01T13:00:00Z', 13.0)
-	`)
-	if err != nil {
-		t.Fatalf("insert readings: %v", err)
-	}
-	repo := NewRepository(db)
-
-	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
-	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 2, 2)
-	if err != nil {
-		t.Fatalf("GetReadings: %v", err)
-	}
-	if len(readings) != 2 {
-		t.Fatalf("GetReadings(limit=2, offset=2): got %d readings, want 2", len(readings))
-	}
-	// Order DESC: 13, 12, 11, 10. Offset 2 gives 11, 10
-	if readings[0].Value != 11.0 || readings[1].Value != 10.0 {
-		t.Errorf("GetReadings offset: got values %v, want [11, 10]", []float64{readings[0].Value, readings[1].Value})
+	// Bucket 0: 10:00, 11:00 → avg 10.5; bucket 1: 12:00 → 12
+	if readings[0].Value != 10.5 || readings[1].Value != 12.0 {
+		t.Errorf("GetReadings limit: got values %v, want [10.5, 12]", []float64{readings[0].Value, readings[1].Value})
 	}
 }
 
@@ -441,14 +405,14 @@ func TestGetReadings_NullTemperature(t *testing.T) {
 
 	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10, 0)
+	readings, err := repo.GetReadings("1", from, to, 10)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
 	if len(readings) != 1 {
 		t.Fatalf("GetReadings: got %d readings, want 1", len(readings))
 	}
-	// COALESCE(temperature_c, 0) in SQL
+	// COALESCE(AVG(temperature_c), 0) in SQL
 	if readings[0].Value != 0 {
 		t.Errorf("null temperature_c: got value %v, want 0", readings[0].Value)
 	}
@@ -658,22 +622,22 @@ func TestBatteryVoltage_PersistedAndRetrieved(t *testing.T) {
 		t.Errorf("GetLatestReadings[1] (with battery): BatteryV = %v, want 3.9", latest[1].BatteryV)
 	}
 
-	// GetReadings: same contract
-	from := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
-	to := time.Date(2025, 2, 2, 0, 0, 0, 0, time.UTC)
-	readings, err := repo.GetReadings("1", from, to, 10, 0)
+	// GetReadings: bucketed; use narrow range so 12:00 and 13:00 land in different buckets
+	from := time.Date(2025, 2, 1, 11, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 2, 1, 14, 0, 0, 0, time.UTC)
+	readings, err := repo.GetReadings("1", from, to, 10)
 	if err != nil {
 		t.Fatalf("GetReadings: %v", err)
 	}
 	if len(readings) != 2 {
 		t.Fatalf("GetReadings: got %d readings, want 2", len(readings))
 	}
-	// Order DESC: 13:00, 12:00
-	if readings[0].BatteryV != 0 {
-		t.Errorf("GetReadings[0] (no battery): BatteryV = %v, want 0", readings[0].BatteryV)
+	// Bucket order ASC: 12:00 first, then 13:00
+	if readings[0].BatteryV != 3.9 {
+		t.Errorf("GetReadings[0] (with battery): BatteryV = %v, want 3.9", readings[0].BatteryV)
 	}
-	if readings[1].BatteryV != 3.9 {
-		t.Errorf("GetReadings[1] (with battery): BatteryV = %v, want 3.9", readings[1].BatteryV)
+	if readings[1].BatteryV != 0 {
+		t.Errorf("GetReadings[1] (no battery): BatteryV = %v, want 0", readings[1].BatteryV)
 	}
 }
 
@@ -732,7 +696,7 @@ func TestRepository_ImplementsInterface(t *testing.T) {
 	// Compile-time check; also call all methods for coverage.
 	_, _ = repo.GetStations()
 	_, _ = repo.GetLatestReadings("1", 100)
-	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10, 0)
+	_, _ = repo.GetReadings("1", time.Now().Add(-24*time.Hour), time.Now(), 10)
 	_, _ = repo.GetReadingsCount("1", time.Now().Add(-24*time.Hour), time.Now())
 	temp, hum, press := 20.0, 50.0, 1013.0
 	_ = repo.InsertReading("1", time.Now(), &temp, &hum, &press, nil, nil, nil, nil)
