@@ -32,9 +32,6 @@ WORKDIR /app
 # Copy the binary from builder
 COPY --from=builder /build/api/cloudpico-api .
 
-# Copy static files
-COPY --from=builder /build/api/static ./static
-
 # Create directory for SQLite database
 RUN mkdir -p /app/data
 
