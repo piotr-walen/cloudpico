@@ -2,6 +2,8 @@
     "files.associations": {
         "stdlib.h": "c",
         "uart.h": "c",
-        "time.h": "c"
+        "time.h": "c",
+        "sync.h": "c",
+        "flash.h": "c"
     }
 }
